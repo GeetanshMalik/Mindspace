@@ -62,3 +62,4 @@ useEffect(() => {
 }, []);
 
 // Similar updates for other functions...
+export default App;
