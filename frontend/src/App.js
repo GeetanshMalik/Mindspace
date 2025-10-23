@@ -3,7 +3,7 @@ import { authService } from './services/authService';
 import { threadService } from './services/threadService';
 import { commentService } from './services/commentService';
 import { journalService } from './services/journalService';
-import './App.css';
+
 
 function App() {
   // State declarations
