@@ -1,27 +1,29 @@
-import api from './api';
-
-// Set token in headers before each request
-const setAuthToken = () => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-  }
-};
+import api from '../config/api';
 
 export const threadService = {
-  getThreads: async () => {
-    const response = await api.get('/threads');
-    return response.data;
-  },
-  
-  createThread: async (threadData) => {
-    setAuthToken(); // Add token to headers
-    const response = await api.post('/threads', threadData);
+  getThreads: async (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    const response = await api.get(`/threads?${query}`);
     return response.data;
   },
   
   getThread: async (id) => {
     const response = await api.get(`/threads/${id}`);
+    return response.data;
+  },
+  
+  createThread: async (threadData) => {
+    const response = await api.post('/threads', threadData);
+    return response.data;
+  },
+  
+  likeThread: async (id) => {
+    const response = await api.post(`/threads/${id}/like`);
+    return response.data;
+  },
+  
+  deleteThread: async (id) => {
+    const response = await api.delete(`/threads/${id}`);
     return response.data;
   }
 };
