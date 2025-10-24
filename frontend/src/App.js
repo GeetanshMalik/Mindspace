@@ -1,16 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { authService } from './services/authService';
 import { threadService } from './services/threadService';
+import { commentService } from './services/commentService';
 
 function App() {
-  // State declarations
+  // State management
   const [currentUser, setCurrentUser] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [view, setView] = useState('home'); // 'home', 'thread'
+  const [selectedThread, setSelectedThread] = useState(null);
+  const [threads, setThreads] = useState([]);
+  const [comments, setComments] = useState([]);
+  const [filter, setFilter] = useState('all');
+  
+  // Modal states
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showNewThread, setShowNewThread] = useState(false);
-  const [threads, setThreads] = useState([]);
   const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
+  
+  // Form states
+  const [loginData, setLoginData] = useState({ email: '', password: '' });
+  const [registerData, setRegisterData] = useState({ name: '', email: '', password: '' });
   const [newThreadData, setNewThreadData] = useState({
     title: '',
     content: '',
@@ -18,27 +29,15 @@ function App() {
     tags: [],
     anonymous: false
   });
+  const [newComment, setNewComment] = useState('');
 
-  // Form data states
-  const [loginData, setLoginData] = useState({ email: '', password: '' });
-  const [registerData, setRegisterData] = useState({ name: '', email: '', password: '' });
-
-  // Trending threads (top 3)
-  const trendingThreads = [
-    { id: 1, title: 'Dealing with Anxiety at Work', author: 'Anonymous', likes: 23, comments: 1, time: '2h ago' },
-    { id: 2, title: 'Finding Peace Through Meditation', author: 'Sarah M.', likes: 45, comments: 0, time: '3h ago' },
-    { id: 3, title: 'Student Stress Management', author: 'Anonymous', likes: 18, comments: 0, time: '1d ago' }
-  ];
-
-  // Show notification function
+  // Notification helper
   const showNotification = (message, type = 'success') => {
     setNotification({ show: true, message, type });
-    setTimeout(() => {
-      setNotification({ show: false, message: '', type: 'success' });
-    }, 3000);
+    setTimeout(() => setNotification({ show: false, message: '', type: 'success' }), 3000);
   };
 
-  // Check for existing session
+  // Check existing session
   useEffect(() => {
     const token = localStorage.getItem('token');
     const user = localStorage.getItem('user');
@@ -48,7 +47,22 @@ function App() {
     }
   }, []);
 
-  // Handle login
+  // Load threads
+  useEffect(() => {
+    loadThreads();
+  }, [filter]);
+
+  const loadThreads = async () => {
+    try {
+      const params = filter !== 'all' ? { category: filter } : {};
+      const data = await threadService.getThreads(params);
+      setThreads(data.threads || []);
+    } catch (error) {
+      console.error('Error loading threads:', error);
+    }
+  };
+
+  // Authentication handlers
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
@@ -58,12 +72,12 @@ function App() {
       setShowLoginModal(false);
       setLoginData({ email: '', password: '' });
       showNotification('Welcome back! 🎉');
+      loadThreads();
     } catch (error) {
       showNotification(error.response?.data?.error || 'Login failed', 'error');
     }
   };
 
-  // Handle register
   const handleRegister = async (e) => {
     e.preventDefault();
     try {
@@ -78,15 +92,15 @@ function App() {
     }
   };
 
-  // Handle logout
   const handleLogout = () => {
     authService.logout();
     setCurrentUser(null);
     setIsLoggedIn(false);
+    setView('home');
     showNotification('Logged out successfully! 👋');
   };
 
-  // Handle create thread
+  // Thread handlers
   const handleCreateThread = async (e) => {
     e.preventDefault();
     try {
@@ -97,33 +111,71 @@ function App() {
         tags: newThreadData.tags,
         isAnonymous: newThreadData.anonymous
       });
-      setThreads([result.thread, ...threads]);
       setShowNewThread(false);
-      setNewThreadData({
-        title: '',
-        content: '',
-        category: 'General',
-        tags: [],
-        anonymous: false
-      });
+      setNewThreadData({ title: '', content: '', category: 'General', tags: [], anonymous: false });
       showNotification('Discussion posted! 💬');
+      loadThreads();
     } catch (error) {
       showNotification(error.response?.data?.error || 'Failed to create thread', 'error');
     }
   };
 
-  // Load threads on mount
-  useEffect(() => {
-    const loadThreads = async () => {
-      try {
-        const data = await threadService.getThreads();
-        setThreads(data.threads || []);
-      } catch (error) {
-        console.error('Error loading threads:', error);
+  const openThread = async (thread) => {
+    setSelectedThread(thread);
+    setView('thread');
+    try {
+      const data = await threadService.getThread(thread._id);
+      setSelectedThread(data.thread);
+      setComments(data.comments || []);
+    } catch (error) {
+      showNotification('Failed to load thread', 'error');
+    }
+  };
+
+  const handleLikeThread = async (threadId) => {
+    if (!isLoggedIn) {
+      showNotification('Please login to like posts', 'error');
+      return;
+    }
+    try {
+      await threadService.likeThread(threadId);
+      if (view === 'thread') {
+        const data = await threadService.getThread(threadId);
+        setSelectedThread(data.thread);
       }
-    };
-    loadThreads();
-  }, []);
+      loadThreads();
+    } catch (error) {
+      showNotification('Failed to like thread', 'error');
+    }
+  };
+
+  const handleComment = async (e) => {
+    e.preventDefault();
+    if (!newComment.trim()) return;
+    try {
+      await commentService.createComment(selectedThread._id, newComment);
+      setNewComment('');
+      showNotification('Comment posted! 💬');
+      const data = await threadService.getThread(selectedThread._id);
+      setComments(data.comments || []);
+    } catch (error) {
+      showNotification('Failed to post comment', 'error');
+    }
+  };
+
+  const formatDate = (date) => {
+    const now = new Date();
+    const diff = now - new Date(date);
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+    
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    return `${days}d ago`;
+  };
+
+  const categories = ['All', 'General', 'Anxiety', 'Depression', 'Stress', 'Relationships', 'Self-Care', 'Students', 'Work'];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50">
@@ -131,27 +183,20 @@ function App() {
       <header className="bg-white shadow-sm sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-3">
+            <button onClick={() => setView('home')} className="flex items-center space-x-3 hover:opacity-80 transition">
               <span className="text-3xl">🌸</span>
               <h1 className="text-2xl font-bold bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">
                 MindSpace
               </h1>
-            </div>
-            
-            <nav className="hidden md:flex items-center space-x-6 text-gray-600">
-              <button className="hover:text-purple-600 transition">🏠 Home</button>
-              <button className="hover:text-purple-600 transition">👥 Community</button>
-              <button className="hover:text-purple-600 transition">📖 Resources</button>
-              <button className="hover:text-purple-600 transition">🌙 Dark Mode</button>
-            </nav>
+            </button>
 
             {isLoggedIn ? (
               <div className="flex items-center space-x-3">
                 <button
                   onClick={() => setShowNewThread(true)}
-                  className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-lg hover:shadow-lg transition"
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2 rounded-full hover:shadow-lg transition font-semibold"
                 >
-                  ✍️ New Thread
+                  ✍️ New Post
                 </button>
                 <div className="relative group">
                   <button className="flex items-center space-x-2">
@@ -159,10 +204,10 @@ function App() {
                       {currentUser?.name?.charAt(0).toUpperCase()}
                     </div>
                   </button>
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 hidden group-hover:block">
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl py-2 hidden group-hover:block">
                     <div className="px-4 py-2 border-b">
-                      <p className="font-semibold text-gray-800">{currentUser?.name}</p>
-                      <p className="text-sm text-gray-500">{currentUser?.email}</p>
+                      <p className="font-semibold text-gray-800 truncate">{currentUser?.name}</p>
+                      <p className="text-sm text-gray-500 truncate">{currentUser?.email}</p>
                     </div>
                     <button onClick={handleLogout} className="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600">
                       Logout
@@ -171,143 +216,47 @@ function App() {
                 </div>
               </div>
             ) : (
-              <div className="flex space-x-3">
-                <button
-                  onClick={() => setShowLoginModal(true)}
-                  className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition"
-                >
-                  Sign In
-                </button>
-              </div>
+              <button
+                onClick={() => setShowLoginModal(true)}
+                className="bg-purple-600 text-white px-6 py-2 rounded-full hover:bg-purple-700 transition font-semibold"
+              >
+                Sign In
+              </button>
             )}
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Sidebar - Welcome */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Hero Section */}
-            <div className="bg-gradient-to-r from-purple-100 to-pink-100 rounded-2xl p-8 text-center">
-              <h2 className="text-3xl font-bold text-gray-800 mb-2">You Are Not Alone 🤗</h2>
-              <p className="text-gray-600 mb-4">A safe space to share, connect, and heal</p>
-              {!isLoggedIn && (
+      <main className="max-w-4xl mx-auto px-4 py-8">
+        {view === 'home' ? (
+          <>
+            {/* Hero Banner */}
+            {!isLoggedIn && (
+              <div className="bg-gradient-to-r from-purple-100 to-pink-100 rounded-2xl p-8 text-center mb-8">
+                <h2 className="text-3xl font-bold text-gray-800 mb-2">You Are Not Alone 🤗</h2>
+                <p className="text-gray-600 mb-4">A safe space to share, connect, and heal</p>
                 <button
                   onClick={() => setShowRegisterModal(true)}
-                  className="bg-purple-600 text-white px-8 py-3 rounded-full hover:bg-purple-700 transition shadow-lg"
+                  className="bg-purple-600 text-white px-8 py-3 rounded-full hover:bg-purple-700 transition shadow-lg font-semibold"
                 >
                   Join Community
                 </button>
-              )}
-            </div>
-
-            {/* Trending Section */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm">
-              <div className="flex items-center space-x-2 mb-4">
-                <span className="text-2xl">🔥</span>
-                <h3 className="text-xl font-bold text-gray-800">Trending</h3>
               </div>
-              <div className="space-y-4">
-                {trendingThreads.map(thread => (
-                  <div key={thread.id} className="border-b pb-4 last:border-b-0 hover:bg-gray-50 p-3 rounded-lg transition cursor-pointer">
-                    <h4 className="font-semibold text-gray-800 mb-2">{thread.title}</h4>
-                    <div className="flex items-center justify-between text-sm text-gray-500">
-                      <span>{thread.author} • {thread.time}</span>
-                      <div className="flex items-center space-x-4">
-                        <span className="flex items-center">❤️ {thread.likes}</span>
-                        <span className="flex items-center">💬 {thread.comments}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            )}
 
-            {/* Recent Discussions */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm">
-              <h3 className="text-xl font-bold text-gray-800 mb-4">Recent Discussions</h3>
-              {threads.length === 0 ? (
-                <div className="text-center py-12">
-                  <span className="text-6xl mb-4 block">💬</span>
-                  <p className="text-gray-500 text-lg">No discussions yet. Be the first to start one!</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {threads.map(thread => (
-                    <div key={thread._id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h4 className="text-lg font-semibold text-gray-800 mb-2">{thread.title}</h4>
-                          <p className="text-gray-600 mb-3 line-clamp-2">{thread.content}</p>
-                          <div className="flex items-center space-x-4 text-sm">
-                            <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full">
-                              {thread.category}
-                            </span>
-                            <span className="text-gray-500">👤 {thread.author?.name || 'Anonymous'}</span>
-                            <span className="text-gray-500">💬 {thread.commentsCount || 0}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Right Sidebar */}
-          <div className="space-y-6">
-            {/* Need Help Card */}
-            <div className="bg-gradient-to-br from-red-50 to-pink-50 rounded-2xl p-6 border-2 border-red-200">
-              <div className="flex items-center space-x-2 mb-4">
-                <span className="text-2xl">🆘</span>
-                <h3 className="text-lg font-bold text-gray-800">Need Help?</h3>
-              </div>
-              <div className="space-y-3">
-                <a href="tel:988" className="flex items-center space-x-2 text-red-600 hover:text-red-700 font-semibold">
-                  <span>📞</span>
-                  <span>Crisis Helpline: 988</span>
-                </a>
-                <a href="sms:741741" className="flex items-center space-x-2 text-purple-600 hover:text-purple-700 font-semibold">
-                  <span>💬</span>
-                  <span>Text HOME to 741741</span>
-                </a>
-              </div>
-            </div>
-
-            {/* Guidelines Card */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">Community Guidelines</h3>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-start space-x-2">
-                  <span>💝</span>
-                  <span>Be kind and supportive</span>
-                </li>
-                <li className="flex items-start space-x-2">
-                  <span>🔒</span>
-                  <span>Respect privacy</span>
-                </li>
-                <li className="flex items-start space-x-2">
-                  <span>🚫</span>
-                  <span>No medical advice</span>
-                </li>
-                <li className="flex items-start space-x-2">
-                  <span>⚠️</span>
-                  <span>Report harmful content</span>
-                </li>
-              </ul>
-            </div>
-
-            {/* Categories Card */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">Categories</h3>
-              <div className="space-y-2">
-                {['Anxiety', 'Depression', 'Relationships', 'Self-Care', 'Stress', 'Students'].map(cat => (
+            {/* Category Filter */}
+            <div className="bg-white rounded-2xl p-4 mb-6 shadow-sm overflow-x-auto">
+              <div className="flex space-x-2">
+                {categories.map(cat => (
                   <button
                     key={cat}
-                    className="w-full text-left px-4 py-2 rounded-lg hover:bg-purple-50 text-gray-700 transition"
+                    onClick={() => setFilter(cat.toLowerCase())}
+                    className={`px-4 py-2 rounded-full whitespace-nowrap transition ${
+                      filter === cat.toLowerCase()
+                        ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
                   >
                     {cat}
                   </button>
@@ -315,28 +264,176 @@ function App() {
               </div>
             </div>
 
-            {/* Footer Card */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm text-center">
-              <p className="text-sm text-gray-500 mb-2">💙 You matter</p>
-              <p className="text-xs text-gray-400">MindSpace is supportive, not medical advice</p>
-              <p className="text-xs text-gray-400 mt-2">MindSpace © 2025 • Made with care 🌸</p>
+            {/* Threads List */}
+            <div className="space-y-4">
+              {threads.length === 0 ? (
+                <div className="bg-white rounded-2xl p-12 text-center shadow-sm">
+                  <span className="text-6xl mb-4 block">💬</span>
+                  <p className="text-gray-500 text-lg">No discussions yet. Be the first to start one!</p>
+                </div>
+              ) : (
+                threads.map(thread => (
+                  <div
+                    key={thread._id}
+                    onClick={() => openThread(thread)}
+                    className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition cursor-pointer"
+                  >
+                    <div className="flex items-start space-x-4">
+                      <div className="w-10 h-10 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0">
+                        {thread.author?.name?.charAt(0).toUpperCase() || 'A'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <span className="font-semibold text-gray-800">{thread.author?.name || 'Anonymous'}</span>
+                          <span className="text-gray-500 text-sm">• {formatDate(thread.createdAt)}</span>
+                          <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs">
+                            {thread.category}
+                          </span>
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-800 mb-2">{thread.title}</h3>
+                        <p className="text-gray-600 line-clamp-2 mb-3">{thread.content}</p>
+                        <div className="flex items-center space-x-6 text-gray-500">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleLikeThread(thread._id);
+                            }}
+                            className="flex items-center space-x-1 hover:text-red-500 transition"
+                          >
+                            <span>{thread.likeCount || thread.likes?.length || 0}</span>
+                            <span>❤️</span>
+                          </button>
+                          <div className="flex items-center space-x-1">
+                            <span>{thread.commentsCount || 0}</span>
+                            <span>💬</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <span>{thread.views || 0}</span>
+                            <span>👁️</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
-          </div>
-        </div>
+          </>
+        ) : (
+          /* Thread Detail View */
+          selectedThread && (
+            <div className="space-y-6">
+              {/* Back Button */}
+              <button
+                onClick={() => setView('home')}
+                className="flex items-center space-x-2 text-purple-600 hover:text-purple-700 font-semibold"
+              >
+                <span>←</span>
+                <span>Back to discussions</span>
+              </button>
+
+              {/* Thread Card */}
+              <div className="bg-white rounded-2xl p-8 shadow-sm">
+                <div className="flex items-start space-x-4 mb-6">
+                  <div className="w-12 h-12 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white font-semibold text-lg">
+                    {selectedThread.author?.name?.charAt(0).toUpperCase() || 'A'}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <span className="font-semibold text-gray-800 text-lg">{selectedThread.author?.name || 'Anonymous'}</span>
+                      <span className="text-gray-500">• {formatDate(selectedThread.createdAt)}</span>
+                    </div>
+                    <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm">
+                      {selectedThread.category}
+                    </span>
+                  </div>
+                </div>
+
+                <h1 className="text-3xl font-bold text-gray-800 mb-4">{selectedThread.title}</h1>
+                <p className="text-gray-700 text-lg whitespace-pre-wrap mb-6">{selectedThread.content}</p>
+
+                <div className="flex items-center space-x-6 text-gray-600 border-t pt-4">
+                  <button
+                    onClick={() => handleLikeThread(selectedThread._id)}
+                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition ${
+                      selectedThread.isLiked ? 'bg-red-50 text-red-600' : 'hover:bg-gray-100'
+                    }`}
+                  >
+                    <span className="text-xl">{selectedThread.isLiked ? '❤️' : '🤍'}</span>
+                    <span className="font-semibold">{selectedThread.likeCount || 0}</span>
+                  </button>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xl">💬</span>
+                    <span className="font-semibold">{comments.length}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xl">👁️</span>
+                    <span className="font-semibold">{selectedThread.views || 0}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Comment Form */}
+              {isLoggedIn && (
+                <div className="bg-white rounded-2xl p-6 shadow-sm">
+                  <h3 className="font-bold text-gray-800 mb-4">Add a comment</h3>
+                  <form onSubmit={handleComment} className="space-y-4">
+                    <textarea
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder="Share your thoughts..."
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none resize-none"
+                      rows="3"
+                      required
+                    />
+                    <button
+                      type="submit"
+                      className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2 rounded-lg hover:shadow-lg transition font-semibold"
+                    >
+                      Post Comment
+                    </button>
+                  </form>
+                </div>
+              )}
+
+              {/* Comments List */}
+              <div className="space-y-4">
+                <h3 className="font-bold text-gray-800 text-xl">Comments ({comments.length})</h3>
+                {comments.length === 0 ? (
+                  <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
+                    <p className="text-gray-500">No comments yet. Be the first to comment!</p>
+                  </div>
+                ) : (
+                  comments.map(comment => (
+                    <div key={comment._id} className="bg-white rounded-2xl p-6 shadow-sm">
+                      <div className="flex items-start space-x-4">
+                        <div className="w-10 h-10 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full flex items-center justify-center text-white font-semibold">
+                          {comment.author?.name?.charAt(0).toUpperCase() || 'A'}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <span className="font-semibold text-gray-800">{comment.author?.name || 'Anonymous'}</span>
+                            <span className="text-gray-500 text-sm">• {formatDate(comment.createdAt)}</span>
+                          </div>
+                          <p className="text-gray-700">{comment.content}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )
+        )}
       </main>
 
       {/* Login Modal */}
       {showLoginModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-gray-800">Welcome Back</h2>
-              <button
-                onClick={() => setShowLoginModal(false)}
-                className="text-gray-500 hover:text-gray-700 text-3xl leading-none"
-              >
-                ×
-              </button>
+              <button onClick={() => setShowLoginModal(false)} className="text-gray-500 hover:text-gray-700 text-3xl">×</button>
             </div>
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
@@ -345,8 +442,7 @@ function App() {
                   type="email"
                   value={loginData.email}
                   onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
-                  placeholder="your@email.com"
+                  className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
                   required
                 />
               </div>
@@ -356,27 +452,16 @@ function App() {
                   type="password"
                   value={loginData.password}
                   onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
-                  placeholder="••••••••"
+                  className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
                   required
                 />
               </div>
-              <button
-                type="submit"
-                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg hover:shadow-lg transition font-semibold"
-              >
+              <button type="submit" className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold">
                 Sign In
               </button>
-              <p className="text-center text-gray-600 text-sm">
+              <p className="text-center text-sm text-gray-600">
                 Don't have an account?{' '}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowLoginModal(false);
-                    setShowRegisterModal(true);
-                  }}
-                  className="text-purple-600 font-semibold hover:underline"
-                >
+                <button type="button" onClick={() => { setShowLoginModal(false); setShowRegisterModal(true); }} className="text-purple-600 font-semibold">
                   Sign Up
                 </button>
               </p>
@@ -388,15 +473,10 @@ function App() {
       {/* Register Modal */}
       {showRegisterModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-gray-800">Join MindSpace</h2>
-              <button
-                onClick={() => setShowRegisterModal(false)}
-                className="text-gray-500 hover:text-gray-700 text-3xl leading-none"
-              >
-                ×
-              </button>
+              <button onClick={() => setShowRegisterModal(false)} className="text-gray-500 hover:text-gray-700 text-3xl">×</button>
             </div>
             <form onSubmit={handleRegister} className="space-y-4">
               <div>
@@ -405,8 +485,7 @@ function App() {
                   type="text"
                   value={registerData.name}
                   onChange={(e) => setRegisterData({ ...registerData, name: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
-                  placeholder="Your name"
+                  className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
                   required
                 />
               </div>
@@ -416,8 +495,7 @@ function App() {
                   type="email"
                   value={registerData.email}
                   onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
-                  placeholder="your@email.com"
+                  className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
                   required
                 />
               </div>
@@ -427,29 +505,17 @@ function App() {
                   type="password"
                   value={registerData.password}
                   onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
-                  placeholder="••••••••"
-                  required
+                  className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
                   minLength={6}
+                  required
                 />
-                <p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
               </div>
-              <button
-                type="submit"
-                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg hover:shadow-lg transition font-semibold"
-              >
+              <button type="submit" className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold">
                 Create Account
               </button>
-              <p className="text-center text-gray-600 text-sm">
+              <p className="text-center text-sm text-gray-600">
                 Already have an account?{' '}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowRegisterModal(false);
-                    setShowLoginModal(true);
-                  }}
-                  className="text-purple-600 font-semibold hover:underline"
-                >
+                <button type="button" onClick={() => { setShowRegisterModal(false); setShowLoginModal(true); }} className="text-purple-600 font-semibold">
                   Sign In
                 </button>
               </p>
@@ -461,15 +527,10 @@ function App() {
       {/* New Thread Modal */}
       {showNewThread && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl p-8 max-w-2xl w-full mx-4 my-8 shadow-2xl">
+          <div className="bg-white rounded-2xl p-8 max-w-2xl w-full my-8 shadow-2xl">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-800">Create New Thread</h2>
-              <button
-                onClick={() => setShowNewThread(false)}
-                className="text-gray-500 hover:text-gray-700 text-3xl leading-none"
-              >
-                ×
-              </button>
+              <h2 className="text-2xl font-bold text-gray-800">Create New Post</h2>
+              <button onClick={() => setShowNewThread(false)} className="text-gray-500 hover:text-gray-700 text-3xl">×</button>
             </div>
             <form onSubmit={handleCreateThread} className="space-y-4">
               <div>
@@ -478,10 +539,10 @@ function App() {
                   type="text"
                   value={newThreadData.title}
                   onChange={(e) => setNewThreadData({ ...newThreadData, title: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
+                  className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
                   placeholder="What's on your mind?"
-                  required
                   minLength={5}
+                  required
                 />
               </div>
               <div>
@@ -489,10 +550,10 @@ function App() {
                 <textarea
                   value={newThreadData.content}
                   onChange={(e) => setNewThreadData({ ...newThreadData, content: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition h-32 resize-none"
+                  className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none h-32 resize-none"
                   placeholder="Share your thoughts..."
-                  required
                   minLength={10}
+                  required
                 />
               </div>
               <div>
@@ -500,7 +561,7 @@ function App() {
                 <select
                   value={newThreadData.category}
                   onChange={(e) => setNewThreadData({ ...newThreadData, category: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
+                  className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
                 >
                   <option>General</option>
                   <option>Anxiety</option>
@@ -512,20 +573,17 @@ function App() {
                   <option>Work</option>
                 </select>
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center">
                 <input
                   type="checkbox"
-                  id="anonymous"
+                  id="anon"
                   checked={newThreadData.anonymous}
                   onChange={(e) => setNewThreadData({ ...newThreadData, anonymous: e.target.checked })}
-                  className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
+                  className="w-4 h-4 text-purple-600"
                 />
-                <label htmlFor="anonymous" className="text-gray-700">Post anonymously</label>
+                <label htmlFor="anon" className="ml-2 text-gray-700">Post anonymously</label>
               </div>
-              <button
-                type="submit"
-                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg hover:shadow-lg transition font-semibold"
-              >
+              <button type="submit" className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold">
                 Post Thread
               </button>
             </form>
@@ -533,12 +591,10 @@ function App() {
         </div>
       )}
 
-      {/* Notification Toast */}
+      {/* Notification */}
       {notification.show && (
-        <div className={`fixed top-4 right-4 px-6 py-4 rounded-lg shadow-2xl z-50 animate-slide-in ${
-          notification.type === 'success' 
-            ? 'bg-green-500' 
-            : 'bg-red-500'
+        <div className={`fixed top-4 right-4 px-6 py-4 rounded-lg shadow-2xl z-50 ${
+          notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'
         } text-white font-semibold`}>
           {notification.message}
         </div>
