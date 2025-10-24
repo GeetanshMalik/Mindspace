@@ -5,14 +5,9 @@ export const journalService = {
     const response = await api.get('/journal');
     return response.data;
   },
-
-  createEntry: async (data) => {
-    const response = await api.post('/journal', data);
-    return response.data;
-  },
-
-  getMoodTrends: async (days = 7) => {
-    const response = await api.get('/journal/stats/trends', { params: { days } });
+  
+  createEntry: async (entry) => {
+    const response = await api.post('/journal', entry);
     return response.data;
   }
 };
