@@ -7,11 +7,12 @@ function App() {
   // State management
   const [currentUser, setCurrentUser] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [view, setView] = useState('home'); // 'home', 'thread'
+  const [view, setView] = useState('home');
   const [selectedThread, setSelectedThread] = useState(null);
   const [threads, setThreads] = useState([]);
   const [comments, setComments] = useState([]);
   const [filter, setFilter] = useState('all');
+  const [loading, setLoading] = useState(false);
   
   // Modal states
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -26,7 +27,7 @@ function App() {
     title: '',
     content: '',
     category: 'General',
-    tags: [],
+    tags: '',
     anonymous: false
   });
   const [newComment, setNewComment] = useState('');
@@ -42,30 +43,51 @@ function App() {
     const token = localStorage.getItem('token');
     const user = localStorage.getItem('user');
     if (token && user) {
-      setCurrentUser(JSON.parse(user));
-      setIsLoggedIn(true);
+      try {
+        setCurrentUser(JSON.parse(user));
+        setIsLoggedIn(true);
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
     }
   }, []);
 
-  // Load threads
+  // Load threads on mount and filter change
   useEffect(() => {
     loadThreads();
   }, [filter]);
 
   const loadThreads = async () => {
     try {
-      const params = filter !== 'all' ? { category: filter } : {};
+      setLoading(true);
+      const params = {};
+      
+      if (filter !== 'all') {
+        params.category = filter.charAt(0).toUpperCase() + filter.slice(1);
+      }
+      
       const data = await threadService.getThreads(params);
       setThreads(data.threads || []);
     } catch (error) {
       console.error('Error loading threads:', error);
+      showNotification('Failed to load discussions', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
   // Authentication handlers
   const handleLogin = async (e) => {
     e.preventDefault();
+    if (!loginData.email || !loginData.password) {
+      showNotification('Please fill in all fields', 'error');
+      return;
+    }
+    
     try {
+      setLoading(true);
       const data = await authService.login(loginData.email, loginData.password);
       setCurrentUser(data.user);
       setIsLoggedIn(true);
@@ -74,13 +96,27 @@ function App() {
       showNotification('Welcome back! 🎉');
       loadThreads();
     } catch (error) {
+      console.error('Login error:', error);
       showNotification(error.response?.data?.error || 'Login failed', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleRegister = async (e) => {
     e.preventDefault();
+    if (!registerData.name || !registerData.email || !registerData.password) {
+      showNotification('Please fill in all fields', 'error');
+      return;
+    }
+    
+    if (registerData.password.length < 6) {
+      showNotification('Password must be at least 6 characters', 'error');
+      return;
+    }
+    
     try {
+      setLoading(true);
       const data = await authService.register(registerData.name, registerData.email, registerData.password);
       setCurrentUser(data.user);
       setIsLoggedIn(true);
@@ -88,7 +124,10 @@ function App() {
       setRegisterData({ name: '', email: '', password: '' });
       showNotification('Welcome to MindSpace! 🌸');
     } catch (error) {
+      console.error('Registration error:', error);
       showNotification(error.response?.data?.error || 'Registration failed', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -103,7 +142,13 @@ function App() {
   // Thread handlers
   const handleCreateThread = async (e) => {
     e.preventDefault();
+    if (!newThreadData.title || !newThreadData.content) {
+      showNotification('Please fill in all fields', 'error');
+      return;
+    }
+    
     try {
+      setLoading(true);
       const result = await threadService.createThread({
         title: newThreadData.title,
         content: newThreadData.content,
@@ -111,68 +156,121 @@ function App() {
         tags: newThreadData.tags,
         isAnonymous: newThreadData.anonymous
       });
+      
       setShowNewThread(false);
-      setNewThreadData({ title: '', content: '', category: 'General', tags: [], anonymous: false });
+      setNewThreadData({ 
+        title: '', 
+        content: '', 
+        category: 'General', 
+        tags: '', 
+        anonymous: false 
+      });
       showNotification('Discussion posted! 💬');
       loadThreads();
     } catch (error) {
-      showNotification(error.response?.data?.error || 'Failed to create thread', 'error');
+      console.error('Create thread error:', error);
+      showNotification(error.response?.data?.error || 'Failed to create discussion', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
   const openThread = async (thread) => {
     setSelectedThread(thread);
     setView('thread');
+    
     try {
+      setLoading(true);
       const data = await threadService.getThread(thread._id);
       setSelectedThread(data.thread);
       setComments(data.comments || []);
     } catch (error) {
-      showNotification('Failed to load thread', 'error');
+      console.error('Load thread error:', error);
+      showNotification('Failed to load thread details', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleLikeThread = async (threadId) => {
+  const handleLikeThread = async (threadId, event) => {
+    if (event) {
+      event.stopPropagation();
+    }
+    
     if (!isLoggedIn) {
       showNotification('Please login to like posts', 'error');
+      setShowLoginModal(true);
       return;
     }
+    
     try {
       await threadService.likeThread(threadId);
-      if (view === 'thread') {
+      
+      setThreads(threads.map(t => {
+        if (t._id === threadId) {
+          const isLiked = t.isLiked;
+          return {
+            ...t,
+            likeCount: isLiked ? (t.likeCount - 1) : (t.likeCount || 0) + 1,
+            isLiked: !isLiked
+          };
+        }
+        return t;
+      }));
+      
+      if (view === 'thread' && selectedThread?._id === threadId) {
         const data = await threadService.getThread(threadId);
         setSelectedThread(data.thread);
       }
-      loadThreads();
     } catch (error) {
-      showNotification('Failed to like thread', 'error');
+      console.error('Like thread error:', error);
+      showNotification('Failed to like post', 'error');
     }
   };
 
   const handleComment = async (e) => {
     e.preventDefault();
-    if (!newComment.trim()) return;
+    if (!newComment.trim()) {
+      showNotification('Please write a comment', 'error');
+      return;
+    }
+    
     try {
+      setLoading(true);
       await commentService.createComment(selectedThread._id, newComment);
       setNewComment('');
       showNotification('Comment posted! 💬');
+      
       const data = await threadService.getThread(selectedThread._id);
       setComments(data.comments || []);
+      setSelectedThread(data.thread);
     } catch (error) {
-      showNotification('Failed to post comment', 'error');
+      console.error('Post comment error:', error);
+      showNotification(error.response?.data?.error || 'Failed to post comment', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
   const formatDate = (date) => {
-    const now = new Date();
-    const diff = now - new Date(date);
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
+    if (!date) return 'Just now';
     
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    return `${days}d ago`;
+    try {
+      const now = new Date();
+      const then = new Date(date);
+      const diff = now - then;
+      const minutes = Math.floor(diff / 60000);
+      const hours = Math.floor(diff / 3600000);
+      const days = Math.floor(diff / 86400000);
+      
+      if (minutes < 1) return 'Just now';
+      if (minutes < 60) return `${minutes}m ago`;
+      if (hours < 24) return `${hours}h ago`;
+      if (days < 7) return `${days}d ago`;
+      return then.toLocaleDateString();
+    } catch (error) {
+      return 'Recently';
+    }
   };
 
   const categories = ['All', 'General', 'Anxiety', 'Depression', 'Stress', 'Relationships', 'Self-Care', 'Students', 'Work'];
@@ -183,7 +281,13 @@ function App() {
       <header className="bg-white shadow-sm sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
-            <button onClick={() => setView('home')} className="flex items-center space-x-3 hover:opacity-80 transition">
+            <button 
+              onClick={() => {
+                setView('home');
+                loadThreads();
+              }} 
+              className="flex items-center space-x-3 hover:opacity-80 transition"
+            >
               <span className="text-3xl">🌸</span>
               <h1 className="text-2xl font-bold bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">
                 MindSpace
@@ -201,7 +305,7 @@ function App() {
                 <div className="relative group">
                   <button className="flex items-center space-x-2">
                     <div className="w-10 h-10 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white font-semibold">
-                      {currentUser?.name?.charAt(0).toUpperCase()}
+                      {currentUser?.name?.charAt(0).toUpperCase() || 'U'}
                     </div>
                   </button>
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl py-2 hidden group-hover:block">
@@ -209,7 +313,10 @@ function App() {
                       <p className="font-semibold text-gray-800 truncate">{currentUser?.name}</p>
                       <p className="text-sm text-gray-500 truncate">{currentUser?.email}</p>
                     </div>
-                    <button onClick={handleLogout} className="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600">
+                    <button 
+                      onClick={handleLogout} 
+                      className="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600"
+                    >
                       Logout
                     </button>
                   </div>
@@ -264,60 +371,73 @@ function App() {
               </div>
             </div>
 
+            {/* Loading State */}
+            {loading && (
+              <div className="text-center py-12">
+                <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-purple-500 border-t-transparent"></div>
+                <p className="mt-4 text-gray-600">Loading discussions...</p>
+              </div>
+            )}
+
             {/* Threads List */}
-            <div className="space-y-4">
-              {threads.length === 0 ? (
-                <div className="bg-white rounded-2xl p-12 text-center shadow-sm">
-                  <span className="text-6xl mb-4 block">💬</span>
-                  <p className="text-gray-500 text-lg">No discussions yet. Be the first to start one!</p>
-                </div>
-              ) : (
-                threads.map(thread => (
-                  <div
-                    key={thread._id}
-                    onClick={() => openThread(thread)}
-                    className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition cursor-pointer"
-                  >
-                    <div className="flex items-start space-x-4">
-                      <div className="w-10 h-10 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0">
-                        {thread.author?.name?.charAt(0).toUpperCase() || 'A'}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <span className="font-semibold text-gray-800">{thread.author?.name || 'Anonymous'}</span>
-                          <span className="text-gray-500 text-sm">• {formatDate(thread.createdAt)}</span>
-                          <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs">
-                            {thread.category}
-                          </span>
+            {!loading && (
+              <div className="space-y-4">
+                {threads.length === 0 ? (
+                  <div className="bg-white rounded-2xl p-12 text-center shadow-sm">
+                    <span className="text-6xl mb-4 block">💬</span>
+                    <p className="text-gray-500 text-lg">
+                      {filter === 'all' 
+                        ? 'No discussions yet. Be the first to start one!' 
+                        : `No discussions in ${filter} category yet.`}
+                    </p>
+                  </div>
+                ) : (
+                  threads.map(thread => (
+                    <div
+                      key={thread._id}
+                      onClick={() => openThread(thread)}
+                      className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition cursor-pointer"
+                    >
+                      <div className="flex items-start space-x-4">
+                        <div className="w-10 h-10 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0">
+                          {thread.author?.name?.charAt(0).toUpperCase() || 'A'}
                         </div>
-                        <h3 className="text-lg font-bold text-gray-800 mb-2">{thread.title}</h3>
-                        <p className="text-gray-600 line-clamp-2 mb-3">{thread.content}</p>
-                        <div className="flex items-center space-x-6 text-gray-500">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleLikeThread(thread._id);
-                            }}
-                            className="flex items-center space-x-1 hover:text-red-500 transition"
-                          >
-                            <span>{thread.likeCount || thread.likes?.length || 0}</span>
-                            <span>❤️</span>
-                          </button>
-                          <div className="flex items-center space-x-1">
-                            <span>{thread.commentsCount || 0}</span>
-                            <span>💬</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2 mb-2 flex-wrap">
+                            <span className="font-semibold text-gray-800">
+                              {thread.author?.name || 'Anonymous'}
+                            </span>
+                            <span className="text-gray-500 text-sm">• {formatDate(thread.createdAt)}</span>
+                            <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm">
+                              {thread.category}
+                            </span>
                           </div>
-                          <div className="flex items-center space-x-1">
-                            <span>{thread.views || 0}</span>
-                            <span>👁️</span>
+                          <h3 className="text-lg font-bold text-gray-800 mb-2">{thread.title}</h3>
+                          <p className="text-gray-600 line-clamp-2 mb-3">{thread.content}</p>
+                          <div className="flex items-center space-x-6 text-gray-500">
+                            <button
+                              onClick={(e) => handleLikeThread(thread._id, e)}
+                              className="flex items-center space-x-1 hover:text-red-500 transition"
+                            >
+                              <span>{thread.likeCount || 0}</span>
+                              <span>❤️</span>
+                            </button>
+                            <div className="flex items-center space-x-1">
+                              <span>{thread.replyCount || 0}</span>
+                              <span>💬</span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <span>{thread.views || 0}</span>
+                              <span>👁️</span>
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))
-              )}
-            </div>
+                  ))
+                )}
+              </div>
+            )}
           </>
         ) : (
           /* Thread Detail View */
@@ -325,7 +445,10 @@ function App() {
             <div className="space-y-6">
               {/* Back Button */}
               <button
-                onClick={() => setView('home')}
+                onClick={() => {
+                  setView('home');
+                  loadThreads();
+                }}
                 className="flex items-center space-x-2 text-purple-600 hover:text-purple-700 font-semibold"
               >
                 <span>←</span>
@@ -340,7 +463,9 @@ function App() {
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-2">
-                      <span className="font-semibold text-gray-800 text-lg">{selectedThread.author?.name || 'Anonymous'}</span>
+                      <span className="font-semibold text-gray-800 text-lg">
+                        {selectedThread.author?.name || 'Anonymous'}
+                      </span>
                       <span className="text-gray-500">• {formatDate(selectedThread.createdAt)}</span>
                     </div>
                     <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm">
@@ -374,7 +499,7 @@ function App() {
               </div>
 
               {/* Comment Form */}
-              {isLoggedIn && (
+              {isLoggedIn ? (
                 <div className="bg-white rounded-2xl p-6 shadow-sm">
                   <h3 className="font-bold text-gray-800 mb-4">Add a comment</h3>
                   <form onSubmit={handleComment} className="space-y-4">
@@ -388,11 +513,22 @@ function App() {
                     />
                     <button
                       type="submit"
-                      className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2 rounded-lg hover:shadow-lg transition font-semibold"
+                      disabled={loading}
+                      className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2 rounded-lg hover:shadow-lg transition font-semibold disabled:opacity-50"
                     >
-                      Post Comment
+                      {loading ? 'Posting...' : 'Post Comment'}
                     </button>
                   </form>
+                </div>
+              ) : (
+                <div className="bg-white rounded-2xl p-6 shadow-sm text-center">
+                  <p className="text-gray-600 mb-4">Please login to comment</p>
+                  <button
+                    onClick={() => setShowLoginModal(true)}
+                    className="bg-purple-600 text-white px-6 py-2 rounded-full hover:bg-purple-700 transition font-semibold"
+                  >
+                    Sign In
+                  </button>
                 </div>
               )}
 
@@ -412,7 +548,9 @@ function App() {
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center space-x-2 mb-2">
-                            <span className="font-semibold text-gray-800">{comment.author?.name || 'Anonymous'}</span>
+                            <span className="font-semibold text-gray-800">
+                              {comment.author?.name || 'Anonymous'}
+                            </span>
                             <span className="text-gray-500 text-sm">• {formatDate(comment.createdAt)}</span>
                           </div>
                           <p className="text-gray-700">{comment.content}</p>
@@ -443,6 +581,73 @@ function App() {
                   value={loginData.email}
                   onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
                   className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
+                  placeholder="What's on your mind?"
+                  minLength={5}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-gray-700 mb-2 font-medium">Content</label>
+                <textarea
+                  value={newThreadData.content}
+                  onChange={(e) => setNewThreadData({ ...newThreadData, content: e.target.value })}
+                  className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none h-32 resize-none"
+                  placeholder="Share your thoughts..."
+                  minLength={10}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-gray-700 mb-2 font-medium">Category</label>
+                <select
+                  value={newThreadData.category}
+                  onChange={(e) => setNewThreadData({ ...newThreadData, category: e.target.value })}
+                  className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
+                >
+                  <option>General</option>
+                  <option>Anxiety</option>
+                  <option>Depression</option>
+                  <option>Stress</option>
+                  <option>Relationships</option>
+                  <option>Self-Care</option>
+                  <option>Students</option>
+                  <option>Work</option>
+                </select>
+              </div>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="anon"
+                  checked={newThreadData.anonymous}
+                  onChange={(e) => setNewThreadData({ ...newThreadData, anonymous: e.target.checked })}
+                  className="w-4 h-4 text-purple-600"
+                />
+                <label htmlFor="anon" className="ml-2 text-gray-700">Post anonymously</label>
+              </div>
+              <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold disabled:opacity-50">
+                {loading ? 'Posting...' : 'Post Discussion'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Notification Toast */}
+      {notification.show && (
+        <div className={`fixed top-4 right-4 px-6 py-4 rounded-lg shadow-2xl z-50 ${
+          notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'
+        } text-white font-semibold max-w-md`}>
+          <div className="flex items-center space-x-2">
+            <span>{notification.type === 'success' ? '✓' : '⚠'}</span>
+            <span>{notification.message}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default App; outline-none"
                   required
                 />
               </div>
@@ -456,8 +661,8 @@ function App() {
                   required
                 />
               </div>
-              <button type="submit" className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold">
-                Sign In
+              <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold disabled:opacity-50">
+                {loading ? 'Signing in...' : 'Sign In'}
               </button>
               <p className="text-center text-sm text-gray-600">
                 Don't have an account?{' '}
@@ -510,8 +715,8 @@ function App() {
                   required
                 />
               </div>
-              <button type="submit" className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold">
-                Create Account
+              <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold disabled:opacity-50">
+                {loading ? 'Creating account...' : 'Create Account'}
               </button>
               <p className="text-center text-sm text-gray-600">
                 Already have an account?{' '}
@@ -539,68 +744,4 @@ function App() {
                   type="text"
                   value={newThreadData.title}
                   onChange={(e) => setNewThreadData({ ...newThreadData, title: e.target.value })}
-                  className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
-                  placeholder="What's on your mind?"
-                  minLength={5}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-gray-700 mb-2 font-medium">Content</label>
-                <textarea
-                  value={newThreadData.content}
-                  onChange={(e) => setNewThreadData({ ...newThreadData, content: e.target.value })}
-                  className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none h-32 resize-none"
-                  placeholder="Share your thoughts..."
-                  minLength={10}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-gray-700 mb-2 font-medium">Category</label>
-                <select
-                  value={newThreadData.category}
-                  onChange={(e) => setNewThreadData({ ...newThreadData, category: e.target.value })}
-                  className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
-                >
-                  <option>General</option>
-                  <option>Anxiety</option>
-                  <option>Depression</option>
-                  <option>Stress</option>
-                  <option>Relationships</option>
-                  <option>Self-Care</option>
-                  <option>Students</option>
-                  <option>Work</option>
-                </select>
-              </div>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="anon"
-                  checked={newThreadData.anonymous}
-                  onChange={(e) => setNewThreadData({ ...newThreadData, anonymous: e.target.checked })}
-                  className="w-4 h-4 text-purple-600"
-                />
-                <label htmlFor="anon" className="ml-2 text-gray-700">Post anonymously</label>
-              </div>
-              <button type="submit" className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold">
-                Post Thread
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Notification */}
-      {notification.show && (
-        <div className={`fixed top-4 right-4 px-6 py-4 rounded-lg shadow-2xl z-50 ${
-          notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'
-        } text-white font-semibold`}>
-          {notification.message}
-        </div>
-      )}
-    </div>
-  );
-}
-
-export default App;
+                  className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-purple-500
