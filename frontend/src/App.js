@@ -932,32 +932,14 @@ function App() {
               {/* Theme Setting */}
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-800'} mb-1`}>
-                    Theme
-                  </h3>
-                  <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Choose your preferred theme
-                  </p>
+                  <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-800'} mb-1`}>Theme</h3>
+                  <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Choose your preferred theme</p>
                 </div>
                 <div className="flex space-x-2">
-                  <button
-                    onClick={() => setTheme('light')}
-                    className={`px-4 py-2 rounded-lg ${
-                      theme === 'light' 
-                        ? 'bg-purple-600 text-white' 
-                        : isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
-                    }`}
-                  >
+                  <button onClick={() => setTheme('light')} className={`px-4 py-2 rounded-lg ${theme === 'light' ? 'bg-purple-600 text-white' : isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'}`}>
                     ☀️ Light
                   </button>
-                  <button
-                    onClick={() => setTheme('dark')}
-                    className={`px-4 py-2 rounded-lg ${
-                      theme === 'dark' 
-                        ? 'bg-purple-600 text-white' 
-                        : isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
-                    }`}
-                  >
+                  <button onClick={() => setTheme('dark')} className={`px-4 py-2 rounded-lg ${theme === 'dark' ? 'bg-purple-600 text-white' : isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'}`}>
                     🌙 Dark
                   </button>
                 </div>
@@ -965,9 +947,7 @@ function App() {
 
               {/* Notifications */}
               <div className={`border-t ${isDark ? 'border-gray-700' : 'border-gray-200'} pt-6`}>
-                <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-800'} mb-4`}>
-                  Notifications
-                </h3>
+                <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-800'} mb-4`}>Notifications</h3>
                 <div className="space-y-3">
                   <label className="flex items-center justify-between cursor-pointer">
                     <span className={isDark ? 'text-gray-300' : 'text-gray-700'}>Email notifications</span>
@@ -986,9 +966,7 @@ function App() {
 
               {/* Privacy */}
               <div className={`border-t ${isDark ? 'border-gray-700' : 'border-gray-200'} pt-6`}>
-                <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-800'} mb-4`}>
-                  Privacy
-                </h3>
+                <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-800'} mb-4`}>Privacy</h3>
                 <div className="space-y-3">
                   <label className="flex items-center justify-between cursor-pointer">
                     <span className={isDark ? 'text-gray-300' : 'text-gray-700'}>Show profile to others</span>
