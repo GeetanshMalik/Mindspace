@@ -980,8 +980,8 @@ function App() {
               </div>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </main>
 
       {/* Login Modal */}
