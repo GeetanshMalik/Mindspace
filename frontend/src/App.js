@@ -7,7 +7,7 @@ function App() {
   // Core state
   const [currentUser, setCurrentUser] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [view, setView] = useState('home'); // home, thread, communities, profile, settings
+  const [view, setView] = useState('home'); // home, thread, communities, profile, settings, community-chat
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
   
   // Content state
@@ -116,7 +116,6 @@ function App() {
       const params = {};
       
       if (filter !== 'all') {
-        // Capitalize first letter for API
         const categoryName = filter.charAt(0).toUpperCase() + filter.slice(1);
         params.category = categoryName;
       }
@@ -134,7 +133,6 @@ function App() {
   // Load communities
   const loadCommunities = async () => {
     try {
-      // Mock data for now - you'll need to create community service
       setCommunities([
         { _id: '1', name: 'Anxiety Support Group', members: 245, description: 'Share experiences and support' },
         { _id: '2', name: 'Student Mental Health', members: 189, description: 'For students dealing with stress' },
@@ -171,7 +169,6 @@ function App() {
 
   const handleGoogleLogin = () => {
     showNotification('Google login will be implemented soon', 'error');
-    // TODO: Implement Google OAuth
   };
 
   const handleRegister = async (e) => {
@@ -259,6 +256,26 @@ function App() {
     }
   };
 
+  const formatDate = (date) => {
+    if (!date) return 'Just now';
+    
+    try {
+      const now = new Date();
+      const then = new Date(date);
+      const diff = now - then;
+      const minutes = Math.floor(diff / 60000);
+      const hours = Math.floor(diff / 3600000);
+      const days = Math.floor(diff / 86400000);
+      
+      if (minutes < 1) return 'Just now';
+      if (minutes < 60) return `${minutes}m ago`;
+      if (hours < 24) return `${hours}h ago`;
+      if (days < 7) return `${days}d ago`;
+      return then.toLocaleDateString();
+    } catch (error) {
+      return 'Recently';
+    }
+  };
   // Thread handlers
   const handleCreateThread = async (e) => {
     e.preventDefault();
@@ -277,7 +294,6 @@ function App() {
         isAnonymous: newThreadData.anonymous
       };
       
-      // TODO: Handle image upload to server
       if (newThreadData.image) {
         threadPayload.image = newThreadData.image;
       }
@@ -382,7 +398,6 @@ function App() {
     }
     
     try {
-      // TODO: Create community service and API
       showNotification('Community created! 🎉');
       setShowNewCommunity(false);
       setNewCommunityData({ name: '', description: '', category: 'General', isPrivate: false });
@@ -395,7 +410,6 @@ function App() {
   const openCommunity = (community) => {
     setSelectedCommunity(community);
     setView('community-chat');
-    // Load community messages
     setCommunityMessages([
       { _id: '1', user: 'John Doe', message: 'Hey everyone!', timestamp: new Date() },
       { _id: '2', user: 'Jane Smith', message: 'Welcome to the group!', timestamp: new Date() }
@@ -406,7 +420,6 @@ function App() {
     e.preventDefault();
     if (!newMessage.trim()) return;
     
-    // TODO: Send message to server
     const message = {
       _id: Date.now().toString(),
       user: currentUser.name,
@@ -418,11 +431,9 @@ function App() {
     setNewMessage('');
   };
 
-  // Profile handlers
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     try {
-      // TODO: Update profile API
       showNotification('Profile updated! ✨');
       setShowProfileEdit(false);
       
@@ -431,27 +442,6 @@ function App() {
       localStorage.setItem('user', JSON.stringify(updatedUser));
     } catch (error) {
       showNotification('Failed to update profile', 'error');
-    }
-  };
-
-  const formatDate = (date) => {
-    if (!date) return 'Just now';
-    
-    try {
-      const now = new Date();
-      const then = new Date(date);
-      const diff = now - then;
-      const minutes = Math.floor(diff / 60000);
-      const hours = Math.floor(diff / 3600000);
-      const days = Math.floor(diff / 86400000);
-      
-      if (minutes < 1) return 'Just now';
-      if (minutes < 60) return `${minutes}m ago`;
-      if (hours < 24) return `${hours}h ago`;
-      if (days < 7) return `${days}d ago`;
-      return then.toLocaleDateString();
-    } catch (error) {
-      return 'Recently';
     }
   };
 
@@ -598,8 +588,7 @@ function App() {
                 <p className={`mt-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Loading discussions...</p>
               </div>
             )}
-
-            {!loading && (
+{!loading && (
               <div className="space-y-4">
                 {threads.length === 0 ? (
                   <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-12 text-center shadow-sm`}>
@@ -638,790 +627,7 @@ function App() {
                           {thread.image && (
                             <img src={thread.image} alt="Thread" className="w-full h-48 object-cover rounded-lg mb-3" />
                           )}
-                          <div className={`flex items-center space-x-6 ${isDark ? 'text-gray-400' : 'text-gray-600'} border-t ${isDark ? 'border-gray-700' : 'border-gray-200'} pt-4`}>
-                <button
-                  onClick={() => handleLikeThread(selectedThread._id)}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition ${
-                    selectedThread.isLiked 
-                      ? 'bg-red-50 text-red-600' 
-                      : isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
-                  }`}
-                >
-                  <span className="text-xl">{selectedThread.isLiked ? '❤️' : '🤍'}</span>
-                  <span className="font-semibold">{selectedThread.likeCount || 0}</span>
-                </button>
-                <div className="flex items-center space-x-2">
-                  <span className="text-xl">💬</span>
-                  <span className="font-semibold">{comments.length}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="text-xl">👁️</span>
-                  <span className="font-semibold">{selectedThread.views || 0}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Comment Form */}
-            {isLoggedIn ? (
-              <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-6 shadow-sm`}>
-                <h3 className={`font-bold ${isDark ? 'text-white' : 'text-gray-800'} mb-4`}>Add a comment</h3>
-                <form onSubmit={handleComment} className="space-y-4">
-                  <textarea
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    placeholder="Share your thoughts..."
-                    className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none resize-none`}
-                    rows="3"
-                    required
-                  />
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2 rounded-lg hover:shadow-lg transition font-semibold disabled:opacity-50"
-                  >
-                    {loading ? 'Posting...' : 'Post Comment'}
-                  </button>
-                </form>
-              </div>
-            ) : (
-              <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-6 shadow-sm text-center`}>
-                <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} mb-4`}>Please login to comment</p>
-                <button
-                  onClick={() => setShowLoginModal(true)}
-                  className="bg-purple-600 text-white px-6 py-2 rounded-full hover:bg-purple-700 transition font-semibold"
-                >
-                  Sign In
-                </button>
-              </div>
-            )}
-
-            {/* Comments List */}
-            <div className="space-y-4">
-              <h3 className={`font-bold ${isDark ? 'text-white' : 'text-gray-800'} text-xl`}>
-                Comments ({comments.length})
-              </h3>
-              {comments.length === 0 ? (
-                <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-8 text-center shadow-sm`}>
-                  <p className={isDark ? 'text-gray-400' : 'text-gray-500'}>No comments yet. Be the first to comment!</p>
-                </div>
-              ) : (
-                comments.map(comment => (
-                  <div key={comment._id} className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-6 shadow-sm`}>
-                    <div className="flex items-start space-x-4">
-                      <div className="w-10 h-10 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full flex items-center justify-center text-white font-semibold">
-                        {comment.author?.name?.charAt(0).toUpperCase() || 'A'}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <span className={`font-semibold ${isDark ? 'text-white' : 'text-gray-800'}`}>
-                            {comment.author?.name || 'Anonymous'}
-                          </span>
-                          <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                            • {formatDate(comment.createdAt)}
-                          </span>
-                        </div>
-                        <p className={isDark ? 'text-gray-300' : 'text-gray-700'}>{comment.content}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* COMMUNITIES VIEW */}
-        {view === 'communities' && (
-          <div className="max-w-6xl mx-auto">
-            <div className="flex justify-between items-center mb-8">
-              <h2 className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>Communities</h2>
-              {isLoggedIn && (
-                <button
-                  onClick={() => setShowNewCommunity(true)}
-                  className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2 rounded-full hover:shadow-lg transition font-semibold"
-                >
-                  ➕ Create Community
-                </button>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {communities.map(community => (
-                <div
-                  key={community._id}
-                  onClick={() => isLoggedIn ? openCommunity(community) : setShowLoginModal(true)}
-                  className={`${isDark ? 'bg-gray-800 hover:bg-gray-750' : 'bg-white hover:shadow-lg'} rounded-2xl p-6 shadow-sm transition cursor-pointer`}
-                >
-                  <div className="flex items-center space-x-3 mb-4">
-                    <div className="w-12 h-12 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white font-bold text-xl">
-                      👥
-                    </div>
-                    <div className="flex-1">
-                      <h3 className={`font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>{community.name}</h3>
-                      <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                        {community.members} members
-                      </p>
-                    </div>
-                  </div>
-                  <p className={`${isDark ? 'text-gray-300' : 'text-gray-600'} text-sm`}>{community.description}</p>
-                  <button className="mt-4 w-full bg-purple-100 text-purple-700 py-2 rounded-lg font-semibold hover:bg-purple-200 transition">
-                    Join Community
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* COMMUNITY CHAT VIEW */}
-        {view === 'community-chat' && selectedCommunity && (
-          <div className="max-w-4xl mx-auto">
-            <button
-              onClick={() => setView('communities')}
-              className="flex items-center space-x-2 text-purple-600 hover:text-purple-700 font-semibold mb-4"
-            >
-              <span>←</span>
-              <span>Back to communities</span>
-            </button>
-
-            <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-lg overflow-hidden`}>
-              {/* Community Header */}
-              <div className={`p-6 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-                <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white font-bold text-xl">
-                    👥
-                  </div>
-                  <div>
-                    <h2 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>
-                      {selectedCommunity.name}
-                    </h2>
-                    <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                      {selectedCommunity.members} members
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Messages */}
-              <div className={`p-6 h-96 overflow-y-auto ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
-                {communityMessages.map(msg => (
-                  <div key={msg._id} className="mb-4">
-                    <div className="flex items-start space-x-3">
-                      <div className="w-8 h-8 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-                        {msg.user.charAt(0)}
-                      </div>
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <span className={`font-semibold text-sm ${isDark ? 'text-white' : 'text-gray-800'}`}>
-                            {msg.user}
-                          </span>
-                          <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                            {formatDate(msg.timestamp)}
-                          </span>
-                        </div>
-                        <p className={`${isDark ? 'text-gray-300' : 'text-gray-700'} mt-1`}>{msg.message}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Message Input */}
-              <form onSubmit={sendCommunityMessage} className={`p-4 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-                <div className="flex space-x-2">
-                  <input
-                    type="text"
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder="Type a message..."
-                    className={`flex-1 px-4 py-2 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-full focus:ring-2 focus:ring-purple-500 outline-none`}
-                  />
-                  <button
-                    type="button"
-                    onClick={isRecording ? stopRecording : startRecording}
-                    className={`p-2 rounded-full ${isRecording ? 'bg-red-500' : 'bg-gray-200'} hover:bg-opacity-80 transition`}
-                  >
-                    🎤
-                  </button>
-                  <button
-                    type="submit"
-                    className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2 rounded-full hover:shadow-lg transition font-semibold"
-                  >
-                    Send
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {/* PROFILE VIEW */}
-        {view === 'profile' && isLoggedIn && (
-          <div className="max-w-4xl mx-auto">
-            <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-8 shadow-sm`}>
-              <div className="flex items-start justify-between mb-8">
-                <div className="flex items-center space-x-6">
-                  {profileData.profileImage ? (
-                    <img 
-                      src={profileData.profileImage} 
-                      alt="Profile" 
-                      className="w-24 h-24 rounded-full object-cover border-4 border-purple-500"
-                    />
-                  ) : (
-                    <div className="w-24 h-24 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white font-bold text-3xl">
-                      {currentUser?.name?.charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                  <div>
-                    <h2 className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-gray-800'} mb-2`}>
-                      {profileData.name || currentUser?.name}
-                    </h2>
-                    <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>{currentUser?.email}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowProfileEdit(true)}
-                  className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition font-semibold"
-                >
-                  Edit Profile
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className={`font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2`}>Bio</h3>
-                  <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>
-                    {profileData.bio || 'No bio yet'}
-                  </p>
-                </div>
-                <div>
-                  <h3 className={`font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2`}>Age</h3>
-                  <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>
-                    {profileData.age || 'Not specified'}
-                  </p>
-                </div>
-                <div>
-                  <h3 className={`font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2`}>Location</h3>
-                  <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>
-                    {profileData.location || 'Not specified'}
-                  </p>
-                </div>
-                <div>
-                  <h3 className={`font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2`}>Date of Birth</h3>
-                  <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>
-                    {profileData.dob || 'Not specified'}
-                  </p>
-                </div>
-                <div className="md:col-span-2">
-                  <h3 className={`font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2`}>Interests</h3>
-                  <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>
-                    {profileData.interests || 'No interests added yet'}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* SETTINGS VIEW */}
-        {view === 'settings' && (
-          <div className="max-w-4xl mx-auto">
-            <h2 className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-gray-800'} mb-8`}>Settings</h2>
-            
-            <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-8 shadow-sm space-y-6`}>
-              {/* Theme Setting */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-800'} mb-1`}>Theme</h3>
-                  <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Choose your preferred theme</p>
-                </div>
-                <div className="flex space-x-2">
-                  <button onClick={() => setTheme('light')} className={`px-4 py-2 rounded-lg ${theme === 'light' ? 'bg-purple-600 text-white' : isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'}`}>
-                    ☀️ Light
-                  </button>
-                  <button onClick={() => setTheme('dark')} className={`px-4 py-2 rounded-lg ${theme === 'dark' ? 'bg-purple-600 text-white' : isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'}`}>
-                    🌙 Dark
-                  </button>
-                </div>
-              </div>
-
-              {/* Notifications */}
-              <div className={`border-t ${isDark ? 'border-gray-700' : 'border-gray-200'} pt-6`}>
-                <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-800'} mb-4`}>Notifications</h3>
-                <div className="space-y-3">
-                  <label className="flex items-center justify-between cursor-pointer">
-                    <span className={isDark ? 'text-gray-300' : 'text-gray-700'}>Email notifications</span>
-                    <input type="checkbox" className="w-5 h-5 text-purple-600 rounded" defaultChecked />
-                  </label>
-                  <label className="flex items-center justify-between cursor-pointer">
-                    <span className={isDark ? 'text-gray-300' : 'text-gray-700'}>Comment replies</span>
-                    <input type="checkbox" className="w-5 h-5 text-purple-600 rounded" defaultChecked />
-                  </label>
-                  <label className="flex items-center justify-between cursor-pointer">
-                    <span className={isDark ? 'text-gray-300' : 'text-gray-700'}>Community invites</span>
-                    <input type="checkbox" className="w-5 h-5 text-purple-600 rounded" />
-                  </label>
-                </div>
-              </div>
-
-              {/* Privacy */}
-              <div className={`border-t ${isDark ? 'border-gray-700' : 'border-gray-200'} pt-6`}>
-                <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-800'} mb-4`}>Privacy</h3>
-                <div className="space-y-3">
-                  <label className="flex items-center justify-between cursor-pointer">
-                    <span className={isDark ? 'text-gray-300' : 'text-gray-700'}>Show profile to others</span>
-                    <input type="checkbox" className="w-5 h-5 text-purple-600 rounded" defaultChecked />
-                  </label>
-                  <label className="flex items-center justify-between cursor-pointer">
-                    <span className={isDark ? 'text-gray-300' : 'text-gray-700'}>Allow messages from non-friends</span>
-                    <input type="checkbox" className="w-5 h-5 text-purple-600 rounded" defaultChecked />
-                  </label>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </main>
-
-      {/* Login Modal */}
-          
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-8 max-w-md w-full shadow-2xl`}>
-            <div className="flex justify-between items-center mb-6">
-              <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>Welcome Back</h2>
-              <button onClick={() => setShowLoginModal(false)} className={`${isDark ? 'text-gray-400' : 'text-gray-500'} hover:text-gray-700 text-3xl`}>×</button>
-            </div>
-            
-            {/* Google Login */}
-            <button
-              onClick={handleGoogleLogin}
-              className="w-full flex items-center justify-center space-x-2 border-2 border-gray-300 py-3 rounded-lg hover:bg-gray-50 transition mb-4"
-            >
-              <span>🔍</span>
-              <span className={isDark ? 'text-white' : 'text-gray-700'}>Continue with Google</span>
-            </button>
-            
-            <div className="flex items-center my-4">
-              <div className={`flex-1 border-t ${isDark ? 'border-gray-700' : 'border-gray-300'}`}></div>
-              <span className={`px-4 text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>OR</span>
-              <div className={`flex-1 border-t ${isDark ? 'border-gray-700' : 'border-gray-300'}`}></div>
-            </div>
-
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>Email</label>
-                <input
-                  type="email"
-                  value={loginData.email}
-                  onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
-                  className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none`}
-                  required
-                />
-              </div>
-              <div>
-                <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>Password</label>
-                <input
-                  type="password"
-                  value={loginData.password}
-                  onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                  className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none`}
-                  required
-                />
-              </div>
-              <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold disabled:opacity-50">
-                {loading ? 'Signing in...' : 'Sign In'}
-              </button>
-              <p className={`text-center text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                Don't have an account?{' '}
-                <button type="button" onClick={() => { setShowLoginModal(false); setShowRegisterModal(true); }} className="text-purple-600 font-semibold">
-                  Sign Up
-                </button>
-              </p>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Register Modal */}
-      {showRegisterModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-8 max-w-md w-full shadow-2xl`}>
-            <div className="flex justify-between items-center mb-6">
-              <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>Join MindSpace</h2>
-              <button onClick={() => setShowRegisterModal(false)} className={`${isDark ? 'text-gray-400' : 'text-gray-500'} hover:text-gray-700 text-3xl`}>×</button>
-            </div>
-            
-            {/* Google Signup */}
-            <button
-              onClick={handleGoogleLogin}
-              className="w-full flex items-center justify-center space-x-2 border-2 border-gray-300 py-3 rounded-lg hover:bg-gray-50 transition mb-4"
-            >
-              <span>🔍</span>
-              <span className={isDark ? 'text-white' : 'text-gray-700'}>Sign up with Google</span>
-            </button>
-            
-            <div className="flex items-center my-4">
-              <div className={`flex-1 border-t ${isDark ? 'border-gray-700' : 'border-gray-300'}`}></div>
-              <span className={`px-4 text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>OR</span>
-              <div className={`flex-1 border-t ${isDark ? 'border-gray-700' : 'border-gray-300'}`}></div>
-            </div>
-
-            <form onSubmit={handleRegister} className="space-y-4">
-              <div>
-                <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>Name</label>
-                <input
-                  type="text"
-                  value={registerData.name}
-                  onChange={(e) => setRegisterData({ ...registerData, name: e.target.value })}
-                  className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none`}
-                  required
-                />
-              </div>
-              <div>
-                <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>Email</label>
-                <input
-                  type="email"
-                  value={registerData.email}
-                  onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
-                  className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none`}
-                  required
-                />
-              </div>
-              <div>
-                <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>Password</label>
-                <input
-                  type="password"
-                  value={registerData.password}
-                  onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
-                  className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none`}
-                  minLength={6}
-                  required
-                />
-              </div>
-              <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold disabled:opacity-50">
-                {loading ? 'Creating account...' : 'Create Account'}
-              </button>
-              <p className={`text-center text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                Already have an account?{' '}
-                <button type="button" onClick={() => { setShowRegisterModal(false); setShowLoginModal(true); }} className="text-purple-600 font-semibold">
-                  Sign In
-                </button>
-              </p>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* New Thread Modal */}
-      {showNewThread && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-8 max-w-2xl w-full my-8 shadow-2xl`}>
-            <div className="flex justify-between items-center mb-6">
-              <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>Create New Post</h2>
-              <button onClick={() => setShowNewThread(false)} className={`${isDark ? 'text-gray-400' : 'text-gray-500'} hover:text-gray-700 text-3xl`}>×</button>
-            </div>
-            <form onSubmit={handleCreateThread} className="space-y-4">
-              <div>
-                <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>Title</label>
-                <input
-                  type="text"
-                  value={newThreadData.title}
-                  onChange={(e) => setNewThreadData({ ...newThreadData, title: e.target.value })}
-                  className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none`}
-                  placeholder="What's on your mind?"
-                  minLength={5}
-                  required
-                />
-              </div>
-              <div>
-                <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>Content</label>
-                <textarea
-                  value={newThreadData.content}
-                  onChange={(e) => setNewThreadData({ ...newThreadData, content: e.target.value })}
-                  className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none h-32 resize-none`}
-                  placeholder="Share your thoughts..."
-                  minLength={10}
-                  required
-                />
-              </div>
-              <div>
-                <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>Category</label>
-                <select
-                  value={newThreadData.category}
-                  onChange={(e) => setNewThreadData({ ...newThreadData, category: e.target.value })}
-                  className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none`}
-                >
-                  <option>General</option>
-                  <option>Anxiety</option>
-                  <option>Depression</option>
-                  <option>Stress</option>
-                  <option>Relationships</option>
-                  <option>Self-Care</option>
-                  <option>Students</option>
-                  <option>Work</option>
-                  <option>Grief</option>
-                  <option>Trauma</option>
-                </select>
-              </div>
-              
-              {/* Image Upload */}
-              <div>
-                <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>
-                  📷 Add Image (optional)
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleImageUpload(e, 'thread')}
-                  className={`w-full px-4 py-2 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg`}
-                />
-                {newThreadData.image && (
-                  <div className="mt-2 relative">
-                    <img src={newThreadData.image} alt="Preview" className="w-full h-48 object-cover rounded-lg" />
-                    <button
-                      type="button"
-                      onClick={() => setNewThreadData({ ...newThreadData, image: null })}
-                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center"
-                    >
-                      ×
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Voice Recording */}
-              <div>
-                <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>
-                  🎤 Voice Message (optional)
-                </label>
-                <div className="flex space-x-2">
-                  <button
-                    type="button"
-                    onClick={isRecording ? stopRecording : startRecording}
-                    className={`px-4 py-2 rounded-lg ${
-                      isRecording 
-                        ? 'bg-red-500 text-white animate-pulse' 
-                        : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
-                    }`}
-                  >
-                    {isRecording ? '⏹️ Stop Recording' : '🎤 Start Recording'}
-                  </button>
-                  {audioBlob && (
-                    <button
-                      type="button"
-                      onClick={() => setAudioBlob(null)}
-                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-                    >
-                      🗑️ Remove Audio
-                    </button>
-                  )}
-                </div>
-                {audioBlob && (
-                  <p className={`mt-2 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                    ✓ Audio recorded
-                  </p>
-                )}
-              </div>
-
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="anon"
-                  checked={newThreadData.anonymous}
-                  onChange={(e) => setNewThreadData({ ...newThreadData, anonymous: e.target.checked })}
-                  className="w-4 h-4 text-purple-600"
-                />
-                <label htmlFor="anon" className={`ml-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Post anonymously
-                </label>
-              </div>
-              <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold disabled:opacity-50">
-                {loading ? 'Posting...' : 'Post Discussion'}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* New Community Modal */}
-      {showNewCommunity && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-8 max-w-md w-full shadow-2xl`}>
-            <div className="flex justify-between items-center mb-6">
-              <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>Create Community</h2>
-              <button onClick={() => setShowNewCommunity(false)} className={`${isDark ? 'text-gray-400' : 'text-gray-500'} text-3xl`}>×</button>
-            </div>
-            <form onSubmit={handleCreateCommunity} className="space-y-4">
-              <div>
-                <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>Community Name</label>
-                <input
-                  type="text"
-                  value={newCommunityData.name}
-                  onChange={(e) => setNewCommunityData({ ...newCommunityData, name: e.target.value })}
-                  className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none`}
-                  required
-                />
-              </div>
-              <div>
-                <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>Description</label>
-                <textarea
-                  value={newCommunityData.description}
-                  onChange={(e) => setNewCommunityData({ ...newCommunityData, description: e.target.value })}
-                  className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none h-24 resize-none`}
-                  required
-                />
-              </div>
-              <div>
-                <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>Category</label>
-                <select
-                  value={newCommunityData.category}
-                  onChange={(e) => setNewCommunityData({ ...newCommunityData, category: e.target.value })}
-                  className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none`}
-                >
-                  <option>General</option>
-                  <option>Anxiety</option>
-                  <option>Depression</option>
-                  <option>Stress</option>
-                  <option>Students</option>
-                </select>
-              </div>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="private"
-                  checked={newCommunityData.isPrivate}
-                  onChange={(e) => setNewCommunityData({ ...newCommunityData, isPrivate: e.target.checked })}
-                  className="w-4 h-4 text-purple-600"
-                />
-                <label htmlFor="private" className={`ml-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Make this community private
-                </label>
-              </div>
-              <button type="submit" className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold">
-                Create Community
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Profile Edit Modal */}
-      {showProfileEdit && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-8 max-w-2xl w-full my-8 shadow-2xl`}>
-            <div className="flex justify-between items-center mb-6">
-              <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>Edit Profile</h2>
-              <button onClick={() => setShowProfileEdit(false)} className={`${isDark ? 'text-gray-400' : 'text-gray-500'} text-3xl`}>×</button>
-            </div>
-            <form onSubmit={handleUpdateProfile} className="space-y-4">
-              {/* Profile Image */}
-              <div>
-                <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>
-                  Profile Picture
-                </label>
-                <div className="flex items-center space-x-4">
-                  {profileData.profileImage ? (
-                    <img src={profileData.profileImage} alt="Profile" className="w-20 h-20 rounded-full object-cover" />
-                  ) : (
-                    <div className="w-20 h-20 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white font-bold text-2xl">
-                      {currentUser?.name?.charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleImageUpload(e, 'profile')}
-                    className={`flex-1 px-4 py-2 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg`}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>Name</label>
-                  <input
-                    type="text"
-                    value={profileData.name}
-                    onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
-                    className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none`}
-                  />
-                </div>
-                <div>
-                  <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>Age</label>
-                  <input
-                    type="number"
-                    value={profileData.age}
-                    onChange={(e) => setProfileData({ ...profileData, age: e.target.value })}
-                    className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none`}
-                  />
-                </div>
-                <div>
-                  <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>Date of Birth</label>
-                  <input
-                    type="date"
-                    value={profileData.dob}
-                    onChange={(e) => setProfileData({ ...profileData, dob: e.target.value })}
-                    className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none`}
-                  />
-                </div>
-                <div>
-                  <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>Location</label>
-                  <input
-                    type="text"
-                    value={profileData.location}
-                    onChange={(e) => setProfileData({ ...profileData, location: e.target.value })}
-                    className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none`}
-                    placeholder="City, Country"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>Bio</label>
-                <textarea
-                  value={profileData.bio}
-                  onChange={(e) => setProfileData({ ...profileData, bio: e.target.value })}
-                  className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none h-24 resize-none`}
-                  placeholder="Tell us about yourself..."
-                />
-              </div>
-
-              <div>
-                <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>Interests</label>
-                <input
-                  type="text"
-                  value={profileData.interests}
-                  onChange={(e) => setProfileData({ ...profileData, interests: e.target.value })}
-                  className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none`}
-                  placeholder="Music, Reading, Sports (comma separated)"
-                />
-              </div>
-
-              <button type="submit" className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold">
-                Save Changes
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Notification Toast */}
-      {notification.show && (
-        <div className={`fixed top-4 right-4 px-6 py-4 rounded-lg shadow-2xl z-50 ${
-          notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'
-        } text-white font-semibold max-w-md animate-slide-in`}>
-          <div className="flex items-center space-x-2">
-            <span>{notification.type === 'success' ? '✓' : '⚠'}</span>
-            <span>{notification.message}</span>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-export default App; ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                          <div className={`flex items-center space-x-6 ${isDark ? 'text-gray-400' : 'text-gray-500'} border-t ${isDark ? 'border-gray-700' : 'border-gray-200'} pt-4`}>
                             <button
                               onClick={(e) => handleLikeThread(thread._id, e)}
                               className="flex items-center space-x-1 hover:text-red-500 transition"
@@ -1448,7 +654,6 @@ export default App; ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
           </>
         )}
 
-        {/* THREAD DETAIL VIEW */}
         {/* THREAD DETAIL VIEW */}
         {view === 'thread' && selectedThread && (
           <div className="space-y-6 max-w-4xl mx-auto">
@@ -1624,8 +829,7 @@ export default App; ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
             </div>
           </div>
         )}
-
-        {/* COMMUNITY CHAT VIEW */}
+{/* COMMUNITY CHAT VIEW */}
         {view === 'community-chat' && selectedCommunity && (
           <div className="max-w-4xl mx-auto">
             <button
@@ -1637,7 +841,6 @@ export default App; ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
             </button>
 
             <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-lg overflow-hidden`}>
-              {/* Community Header */}
               <div className={`p-6 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
                 <div className="flex items-center space-x-3">
                   <div className="w-12 h-12 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white font-bold text-xl">
@@ -1654,7 +857,6 @@ export default App; ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                 </div>
               </div>
 
-              {/* Messages */}
               <div className={`p-6 h-96 overflow-y-auto ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
                 {communityMessages.map(msg => (
                   <div key={msg._id} className="mb-4">
@@ -1678,354 +880,13 @@ export default App; ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                 ))}
               </div>
 
-              {/* Message Input */}
-              <form onSubmit={sendCommunityMessage} className={`p-4 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+              <div className={`p-4 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
                 <div className="flex space-x-2">
                   <input
-                  type="email"
-                  value={registerData.email}
-                  onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
-                  className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none`}
-                  required
-                />
-              </div>
-              <div>
-                <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>Password</label>
-                <input
-                  type="password"
-                  value={registerData.password}
-                  onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
-                  className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none`}
-                  minLength={6}
-                  required
-                />
-              </div>
-              <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold disabled:opacity-50">
-                {loading ? 'Creating account...' : 'Create Account'}
-              </button>
-              <p className={`text-center text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                Already have an account?{' '}
-                <button type="button" onClick={() => { setShowRegisterModal(false); setShowLoginModal(true); }} className="text-purple-600 font-semibold">
-                  Sign In
-                </button>
-              </p>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* New Thread Modal */}
-      {showNewThread && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-8 max-w-2xl w-full my-8 shadow-2xl`}>
-            <div className="flex justify-between items-center mb-6">
-              <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>Create New Post</h2>
-              <button onClick={() => setShowNewThread(false)} className={`${isDark ? 'text-gray-400' : 'text-gray-500'} hover:text-gray-700 text-3xl`}>×</button>
-            </div>
-            <form onSubmit={handleCreateThread} className="space-y-4">
-              <div>
-                <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>Title</label>
-                <input
-                  type="text"
-                  value={newThreadData.title}
-                  onChange={(e) => setNewThreadData({ ...newThreadData, title: e.target.value })}
-                  className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none`}
-                  placeholder="What's on your mind?"
-                  minLength={5}
-                  required
-                />
-              </div>
-              <div>
-                <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>Content</label>
-                <textarea
-                  value={newThreadData.content}
-                  onChange={(e) => setNewThreadData({ ...newThreadData, content: e.target.value })}
-                  className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none h-32 resize-none`}
-                  placeholder="Share your thoughts..."
-                  minLength={10}
-                  required
-                />
-              </div>
-              <div>
-                <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>Category</label>
-                <select
-                  value={newThreadData.category}
-                  onChange={(e) => setNewThreadData({ ...newThreadData, category: e.target.value })}
-                  className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none`}
-                >
-                  <option>General</option>
-                  <option>Anxiety</option>
-                  <option>Depression</option>
-                  <option>Stress</option>
-                  <option>Relationships</option>
-                  <option>Self-Care</option>
-                  <option>Students</option>
-                  <option>Work</option>
-                  <option>Grief</option>
-                  <option>Trauma</option>
-                </select>
-              </div>
-              
-              {/* Image Upload */}
-              <div>
-                <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>
-                  📷 Add Image (optional)
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleImageUpload(e, 'thread')}
-                  className={`w-full px-4 py-2 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg`}
-                />
-                {newThreadData.image && (
-                  <div className="mt-2 relative">
-                    <img src={newThreadData.image} alt="Preview" className="w-full h-48 object-cover rounded-lg" />
-                    <button
-                      type="button"
-                      onClick={() => setNewThreadData({ ...newThreadData, image: null })}
-                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center"
-                    >
-                      ×
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Voice Recording */}
-              <div>
-                <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>
-                  🎤 Voice Message (optional)
-                </label>
-                <div className="flex space-x-2">
-                  <button
-                    type="button"
-                    onClick={isRecording ? stopRecording : startRecording}
-                    className={`px-4 py-2 rounded-lg ${
-                      isRecording 
-                        ? 'bg-red-500 text-white animate-pulse' 
-                        : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
-                    }`}
-                  >
-                    {isRecording ? '⏹️ Stop Recording' : '🎤 Start Recording'}
-                  </button>
-                  {audioBlob && (
-                    <button
-                      type="button"
-                      onClick={() => setAudioBlob(null)}
-                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-                    >
-                      🗑️ Remove Audio
-                    </button>
-                  )}
-                </div>
-                {audioBlob && (
-                  <p className={`mt-2 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                    ✓ Audio recorded
-                  </p>
-                )}
-              </div>
-
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="anon"
-                  checked={newThreadData.anonymous}
-                  onChange={(e) => setNewThreadData({ ...newThreadData, anonymous: e.target.checked })}
-                  className="w-4 h-4 text-purple-600"
-                />
-                <label htmlFor="anon" className={`ml-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Post anonymously
-                </label>
-              </div>
-              <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold disabled:opacity-50">
-                {loading ? 'Posting...' : 'Post Discussion'}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* New Community Modal */}
-      {showNewCommunity && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-8 max-w-md w-full shadow-2xl`}>
-            <div className="flex justify-between items-center mb-6">
-              <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>Create Community</h2>
-              <button onClick={() => setShowNewCommunity(false)} className={`${isDark ? 'text-gray-400' : 'text-gray-500'} text-3xl`}>×</button>
-            </div>
-            <form onSubmit={handleCreateCommunity} className="space-y-4">
-              <div>
-                <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>Community Name</label>
-                <input
-                  type="text"
-                  value={newCommunityData.name}
-                  onChange={(e) => setNewCommunityData({ ...newCommunityData, name: e.target.value })}
-                  className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none`}
-                  required
-                />
-              </div>
-              <div>
-                <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>Description</label>
-                <textarea
-                  value={newCommunityData.description}
-                  onChange={(e) => setNewCommunityData({ ...newCommunityData, description: e.target.value })}
-                  className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none h-24 resize-none`}
-                  required
-                />
-              </div>
-              <div>
-                <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>Category</label>
-                <select
-                  value={newCommunityData.category}
-                  onChange={(e) => setNewCommunityData({ ...newCommunityData, category: e.target.value })}
-                  className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none`}
-                >
-                  <option>General</option>
-                  <option>Anxiety</option>
-                  <option>Depression</option>
-                  <option>Stress</option>
-                  <option>Students</option>
-                </select>
-              </div>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="private"
-                  checked={newCommunityData.isPrivate}
-                  onChange={(e) => setNewCommunityData({ ...newCommunityData, isPrivate: e.target.checked })}
-                  className="w-4 h-4 text-purple-600"
-                />
-                <label htmlFor="private" className={`ml-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Make this community private
-                </label>
-              </div>
-              <button type="submit" className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold">
-                Create Community
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Profile Edit Modal */}
-      {showProfileEdit && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-8 max-w-2xl w-full my-8 shadow-2xl`}>
-            <div className="flex justify-between items-center mb-6">
-              <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>Edit Profile</h2>
-              <button onClick={() => setShowProfileEdit(false)} className={`${isDark ? 'text-gray-400' : 'text-gray-500'} text-3xl`}>×</button>
-            </div>
-            <form onSubmit={handleUpdateProfile} className="space-y-4">
-              {/* Profile Image */}
-              <div>
-                <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>
-                  Profile Picture
-                </label>
-                <div className="flex items-center space-x-4">
-                  {profileData.profileImage ? (
-                    <img src={profileData.profileImage} alt="Profile" className="w-20 h-20 rounded-full object-cover" />
-                  ) : (
-                    <div className="w-20 h-20 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white font-bold text-2xl">
-                      {currentUser?.name?.charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleImageUpload(e, 'profile')}
-                    className={`flex-1 px-4 py-2 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg`}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>Name</label>
-                  <input
-                    type="text"
-                    value={profileData.name}
-                    onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
-                    className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none`}
-                  />
-                </div>
-                <div>
-                  <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>Age</label>
-                  <input
-                    type="number"
-                    value={profileData.age}
-                    onChange={(e) => setProfileData({ ...profileData, age: e.target.value })}
-                    className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none`}
-                  />
-                </div>
-                <div>
-                  <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>Date of Birth</label>
-                  <input
-                    type="date"
-                    value={profileData.dob}
-                    onChange={(e) => setProfileData({ ...profileData, dob: e.target.value })}
-                    className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none`}
-                  />
-                </div>
-                <div>
-                  <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>Location</label>
-                  <input
-                    type="text"
-                    value={profileData.location}
-                    onChange={(e) => setProfileData({ ...profileData, location: e.target.value })}
-                    className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none`}
-                    placeholder="City, Country"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>Bio</label>
-                <textarea
-                  value={profileData.bio}
-                  onChange={(e) => setProfileData({ ...profileData, bio: e.target.value })}
-                  className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none h-24 resize-none`}
-                  placeholder="Tell us about yourself..."
-                />
-              </div>
-
-              <div>
-                <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>Interests</label>
-                <input
-                  type="text"
-                  value={profileData.interests}
-                  onChange={(e) => setProfileData({ ...profileData, interests: e.target.value })}
-                  className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none`}
-                  placeholder="Music, Reading, Sports (comma separated)"
-                />
-              </div>
-
-              <button type="submit" className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold">
-                Save Changes
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Notification Toast */}
-      {notification.show && (
-        <div className={`fixed top-4 right-4 px-6 py-4 rounded-lg shadow-2xl z-50 ${
-          notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'
-        } text-white font-semibold max-w-md animate-slide-in`}>
-          <div className="flex items-center space-x-2">
-            <span>{notification.type === 'success' ? '✓' : '⚠'}</span>
-            <span>{notification.message}</span>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-export default App;
                     type="text"
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && sendCommunityMessage(e)}
                     placeholder="Type a message..."
                     className={`flex-1 px-4 py-2 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-full focus:ring-2 focus:ring-purple-500 outline-none`}
                   />
@@ -2037,13 +898,13 @@ export default App;
                     🎤
                   </button>
                   <button
-                    type="submit"
+                    onClick={(e) => sendCommunityMessage(e)}
                     className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2 rounded-full hover:shadow-lg transition font-semibold"
                   >
                     Send
                   </button>
                 </div>
-              </form>
+              </div>
             </div>
           </div>
         )}
@@ -2122,7 +983,6 @@ export default App;
             <h2 className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-gray-800'} mb-8`}>Settings</h2>
             
             <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-8 shadow-sm space-y-6`}>
-              {/* Theme Setting */}
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-800'} mb-1`}>
@@ -2156,7 +1016,6 @@ export default App;
                 </div>
               </div>
 
-              {/* Notifications */}
               <div className={`border-t ${isDark ? 'border-gray-700' : 'border-gray-200'} pt-6`}>
                 <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-800'} mb-4`}>
                   Notifications
@@ -2177,7 +1036,6 @@ export default App;
                 </div>
               </div>
 
-              {/* Privacy */}
               <div className={`border-t ${isDark ? 'border-gray-700' : 'border-gray-200'} pt-6`}>
                 <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-800'} mb-4`}>
                   Privacy
@@ -2198,7 +1056,7 @@ export default App;
         )}
       </main>
 
-      {/* Login Modal */}
+      {/* MODALS - Login Modal */}
       {showLoginModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-8 max-w-md w-full shadow-2xl`}>
@@ -2207,7 +1065,6 @@ export default App;
               <button onClick={() => setShowLoginModal(false)} className={`${isDark ? 'text-gray-400' : 'text-gray-500'} hover:text-gray-700 text-3xl`}>×</button>
             </div>
             
-            {/* Google Login */}
             <button
               onClick={handleGoogleLogin}
               className="w-full flex items-center justify-center space-x-2 border-2 border-gray-300 py-3 rounded-lg hover:bg-gray-50 transition mb-4"
@@ -2222,7 +1079,7 @@ export default App;
               <div className={`flex-1 border-t ${isDark ? 'border-gray-700' : 'border-gray-300'}`}></div>
             </div>
 
-            <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-4">
               <div>
                 <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>Email</label>
                 <input
@@ -2230,7 +1087,6 @@ export default App;
                   value={loginData.email}
                   onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
                   className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none`}
-                  required
                 />
               </div>
               <div>
@@ -2240,10 +1096,9 @@ export default App;
                   value={loginData.password}
                   onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
                   className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none`}
-                  required
                 />
               </div>
-              <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold disabled:opacity-50">
+              <button onClick={handleLogin} disabled={loading} className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold disabled:opacity-50">
                 {loading ? 'Signing in...' : 'Sign In'}
               </button>
               <p className={`text-center text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -2252,12 +1107,11 @@ export default App;
                   Sign Up
                 </button>
               </p>
-            </form>
+            </div>
           </div>
         </div>
       )}
-
-      {/* Register Modal */}
+{/* Register Modal */}
       {showRegisterModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-8 max-w-md w-full shadow-2xl`}>
@@ -2266,7 +1120,6 @@ export default App;
               <button onClick={() => setShowRegisterModal(false)} className={`${isDark ? 'text-gray-400' : 'text-gray-500'} hover:text-gray-700 text-3xl`}>×</button>
             </div>
             
-            {/* Google Signup */}
             <button
               onClick={handleGoogleLogin}
               className="w-full flex items-center justify-center space-x-2 border-2 border-gray-300 py-3 rounded-lg hover:bg-gray-50 transition mb-4"
@@ -2281,7 +1134,7 @@ export default App;
               <div className={`flex-1 border-t ${isDark ? 'border-gray-700' : 'border-gray-300'}`}></div>
             </div>
 
-            <form onSubmit={handleRegister} className="space-y-4">
+            <div className="space-y-4">
               <div>
                 <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>Name</label>
                 <input
@@ -2289,7 +1142,6 @@ export default App;
                   value={registerData.name}
                   onChange={(e) => setRegisterData({ ...registerData, name: e.target.value })}
                   className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none`}
-                  required
                 />
               </div>
               <div>
@@ -2299,7 +1151,6 @@ export default App;
                   value={registerData.email}
                   onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
                   className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none`}
-                  required
                 />
               </div>
               <div>
@@ -2309,12 +1160,10 @@ export default App;
                   value={registerData.password}
                   onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
                   className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none`}
-                  minLength={6}
-                  required
                 />
                 <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'} mt-1`}>Must be at least 6 characters</p>
               </div>
-              <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold disabled:opacity-50">
+              <button onClick={handleRegister} disabled={loading} className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold disabled:opacity-50">
                 {loading ? 'Creating account...' : 'Create Account'}
               </button>
               <p className={`text-center text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -2323,7 +1172,7 @@ export default App;
                   Sign In
                 </button>
               </p>
-            </form>
+            </div>
           </div>
         </div>
       )}
@@ -2336,7 +1185,7 @@ export default App;
               <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>Create New Post</h2>
               <button onClick={() => setShowNewThread(false)} className={`${isDark ? 'text-gray-400' : 'text-gray-500'} hover:text-gray-700 text-3xl`}>×</button>
             </div>
-            <form onSubmit={handleCreateThread} className="space-y-4">
+            <div className="space-y-4">
               <div>
                 <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>Title</label>
                 <input
@@ -2345,8 +1194,6 @@ export default App;
                   onChange={(e) => setNewThreadData({ ...newThreadData, title: e.target.value })}
                   className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none`}
                   placeholder="What's on your mind?"
-                  minLength={5}
-                  required
                 />
               </div>
               <div>
@@ -2356,8 +1203,6 @@ export default App;
                   onChange={(e) => setNewThreadData({ ...newThreadData, content: e.target.value })}
                   className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none h-32 resize-none`}
                   placeholder="Share your thoughts..."
-                  minLength={10}
-                  required
                 />
               </div>
               <div>
@@ -2380,7 +1225,6 @@ export default App;
                 </select>
               </div>
               
-              {/* Image Upload */}
               <div>
                 <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>
                   📷 Add Image (optional)
@@ -2405,7 +1249,6 @@ export default App;
                 )}
               </div>
 
-              {/* Voice Recording */}
               <div>
                 <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>
                   🎤 Voice Message (optional)
@@ -2451,10 +1294,14 @@ export default App;
                   Post anonymously
                 </label>
               </div>
-              <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold disabled:opacity-50">
+              <button 
+                onClick={handleCreateThread} 
+                disabled={loading} 
+                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold disabled:opacity-50"
+              >
                 {loading ? 'Posting...' : 'Post Discussion'}
               </button>
-            </form>
+            </div>
           </div>
         </div>
       )}
@@ -2467,7 +1314,7 @@ export default App;
               <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>Create Community</h2>
               <button onClick={() => setShowNewCommunity(false)} className={`${isDark ? 'text-gray-400' : 'text-gray-500'} text-3xl`}>×</button>
             </div>
-            <form onSubmit={handleCreateCommunity} className="space-y-4">
+            <div className="space-y-4">
               <div>
                 <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>Community Name</label>
                 <input
@@ -2475,7 +1322,6 @@ export default App;
                   value={newCommunityData.name}
                   onChange={(e) => setNewCommunityData({ ...newCommunityData, name: e.target.value })}
                   className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none`}
-                  required
                 />
               </div>
               <div>
@@ -2484,7 +1330,6 @@ export default App;
                   value={newCommunityData.description}
                   onChange={(e) => setNewCommunityData({ ...newCommunityData, description: e.target.value })}
                   className={`w-full px-4 py-3 border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-purple-500 outline-none h-24 resize-none`}
-                  required
                 />
               </div>
               <div>
@@ -2513,10 +1358,13 @@ export default App;
                   Make this community private
                 </label>
               </div>
-              <button type="submit" className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold">
+              <button 
+                onClick={handleCreateCommunity}
+                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold"
+              >
                 Create Community
               </button>
-            </form>
+            </div>
           </div>
         </div>
       )}
@@ -2529,8 +1377,7 @@ export default App;
               <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>Edit Profile</h2>
               <button onClick={() => setShowProfileEdit(false)} className={`${isDark ? 'text-gray-400' : 'text-gray-500'} text-3xl`}>×</button>
             </div>
-            <form onSubmit={handleUpdateProfile} className="space-y-4">
-              {/* Profile Image */}
+            <div className="space-y-4">
               <div>
                 <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>
                   Profile Picture
@@ -2613,10 +1460,13 @@ export default App;
                 />
               </div>
 
-              <button type="submit" className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold">
+              <button 
+                onClick={handleUpdateProfile}
+                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold"
+              >
                 Save Changes
               </button>
-            </form>
+            </div>
           </div>
         </div>
       )}
