@@ -133,11 +133,7 @@ function App() {
   // Load communities
   const loadCommunities = async () => {
     try {
-      setCommunities([
-        { _id: '1', name: 'Anxiety Support Group', members: 245, description: 'Share experiences and support' },
-        { _id: '2', name: 'Student Mental Health', members: 189, description: 'For students dealing with stress' },
-        { _id: '3', name: 'Depression Warriors', members: 312, description: 'Fighting depression together' }
-      ]);
+      setCommunities([]);
     } catch (error) {
       console.error('Error loading communities:', error);
     }
@@ -207,25 +203,34 @@ function App() {
   };
 
   // Image upload handler
-  const handleImageUpload = (e, type) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        showNotification('Image must be less than 5MB', 'error');
-        return;
-      }
-      
+const handleImageUpload = (e, type) => {
+  const file = e.target.files[0];
+  if (file) {
+    if (file.size > 5 * 1024 * 1024) {
+      showNotification('Image must be less than 5MB', 'error');
+      return;
+    }
+    
+    if (type === 'thread') {
+      // Store both the preview and the actual file
       const reader = new FileReader();
       reader.onloadend = () => {
-        if (type === 'thread') {
-          setNewThreadData({ ...newThreadData, image: reader.result });
-        } else if (type === 'profile') {
-          setProfileData({ ...profileData, profileImage: reader.result });
-        }
+        setNewThreadData({ 
+          ...newThreadData, 
+          image: reader.result, // For preview
+          imageFile: file // For upload
+        });
+      };
+      reader.readAsDataURL(file);
+    } else if (type === 'profile') {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfileData({ ...profileData, profileImage: reader.result });
       };
       reader.readAsDataURL(file);
     }
-  };
+  }
+};
 
   // Audio recording handlers
   const startRecording = async () => {
@@ -666,23 +671,51 @@ function App() {
             </button>
 
             <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-8 shadow-sm`}>
-              <div className="flex items-start space-x-4 mb-6">
-                <div className="w-12 h-12 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white font-semibold text-lg">
-                  {selectedThread.author?.name?.charAt(0).toUpperCase() || 'A'}
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <span className={`font-semibold text-lg ${isDark ? 'text-white' : 'text-gray-800'}`}>
-                      {selectedThread.author?.name || 'Anonymous'}
-                    </span>
-                    <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>
-                      • {formatDate(selectedThread.createdAt)}
+              <div className="flex items-start justify-between mb-6">
+                <div className="flex items-start space-x-4 flex-1">
+                  <div className="w-12 h-12 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white font-semibold text-lg">
+                    {selectedThread.author?.name?.charAt(0).toUpperCase() || 'A'}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <span className={`font-semibold text-lg ${isDark ? 'text-white' : 'text-gray-800'}`}>
+                        {selectedThread.author?.name || 'Anonymous'}
+                      </span>
+                      <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>
+                        • {formatDate(selectedThread.createdAt)}
+                      </span>
+                    </div>
+                    <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm">
+                      {selectedThread.category}
                     </span>
                   </div>
-                  <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm">
-                    {selectedThread.category}
-                  </span>
                 </div>
+
+                {/* Delete Button - Only show to thread author */}
+                {isLoggedIn && currentUser && selectedThread.author?._id === currentUser._id && (
+                  <button
+                    onClick={async () => {
+                      if (window.confirm('Are you sure you want to delete this thread? This action cannot be undone.')) {
+                        try {
+                          setLoading(true);
+                          await threadService.deleteThread(selectedThread._id);
+                          showNotification('Thread deleted successfully! 🗑️');
+                          setView('home');
+                          loadThreads();
+                        } catch (error) {
+                          console.error('Delete thread error:', error);
+                          showNotification('Failed to delete thread', 'error');
+                        } finally {
+                          setLoading(false);
+                        }
+                      }
+                    }}
+                    className="flex items-center space-x-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition font-semibold"
+                  >
+                    <span>🗑️</span>
+                    <span>Delete</span>
+                  </button>
+                )}
               </div>
 
               <h1 className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-gray-800'} mb-4`}>
@@ -715,6 +748,20 @@ function App() {
                   <span className="text-xl">👁️</span>
                   <span className="font-semibold">{selectedThread.views || 0}</span>
                 </div>
+                
+                {/* Share Button */}
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(window.location.href);
+                    showNotification('Link copied to clipboard! 📋');
+                  }}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition ${
+                    isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                  }`}
+                >
+                  <span className="text-xl">🔗</span>
+                  <span className="font-semibold">Share</span>
+                </button>
               </div>
             </div>
 
@@ -769,13 +816,36 @@ function App() {
                         {comment.author?.name?.charAt(0).toUpperCase() || 'A'}
                       </div>
                       <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <span className={`font-semibold ${isDark ? 'text-white' : 'text-gray-800'}`}>
-                            {comment.author?.name || 'Anonymous'}
-                          </span>
-                          <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                            • {formatDate(comment.createdAt)}
-                          </span>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center space-x-2">
+                            <span className={`font-semibold ${isDark ? 'text-white' : 'text-gray-800'}`}>
+                              {comment.author?.name || 'Anonymous'}
+                            </span>
+                            <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                              • {formatDate(comment.createdAt)}
+                            </span>
+                          </div>
+                          
+                          {/* Delete Comment Button - Only for comment author */}
+                          {isLoggedIn && currentUser && comment.author?._id === currentUser._id && (
+                            <button
+                              onClick={async () => {
+                                if (window.confirm('Delete this comment?')) {
+                                  try {
+                                    await commentService.deleteComment(comment._id);
+                                    showNotification('Comment deleted');
+                                    const data = await threadService.getThread(selectedThread._id);
+                                    setComments(data.comments || []);
+                                  } catch (error) {
+                                    showNotification('Failed to delete comment', 'error');
+                                  }
+                                }
+                              }}
+                              className="text-red-500 hover:text-red-700 text-sm"
+                            >
+                              🗑️
+                            </button>
+                          )}
                         </div>
                         <p className={isDark ? 'text-gray-300' : 'text-gray-700'}>{comment.content}</p>
                       </div>
@@ -1249,39 +1319,7 @@ function App() {
                 )}
               </div>
 
-              <div>
-                <label className={`block ${isDark ? 'text-gray-300' : 'text-gray-700'} mb-2 font-medium`}>
-                  🎤 Voice Message (optional)
-                </label>
-                <div className="flex space-x-2">
-                  <button
-                    type="button"
-                    onClick={isRecording ? stopRecording : startRecording}
-                    className={`px-4 py-2 rounded-lg ${
-                      isRecording 
-                        ? 'bg-red-500 text-white animate-pulse' 
-                        : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
-                    }`}
-                  >
-                    {isRecording ? '⏹️ Stop Recording' : '🎤 Start Recording'}
-                  </button>
-                  {audioBlob && (
-                    <button
-                      type="button"
-                      onClick={() => setAudioBlob(null)}
-                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-                    >
-                      🗑️ Remove Audio
-                    </button>
-                  )}
-                </div>
-                {audioBlob && (
-                  <p className={`mt-2 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                    ✓ Audio recorded
-                  </p>
-                )}
-              </div>
-
+              
               <div className="flex items-center">
                 <input
                   type="checkbox"
