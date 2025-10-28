@@ -1,4 +1,4 @@
-import api from '../config/api';
+import api from './api';
 
 export const threadService = {
   getThreads: async (params = {}) => {
