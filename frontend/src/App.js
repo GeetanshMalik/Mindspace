@@ -130,14 +130,19 @@ function App() {
     }
   };
 
-  // Load communities
-  const loadCommunities = async () => {
-    try {
-      setCommunities([]);
-    } catch (error) {
-      console.error('Error loading communities:', error);
-    }
-  };
+ // Load communities
+const loadCommunities = async () => {
+  try {
+    // Mock communities data - replace with API call when backend is ready
+    setCommunities([
+      { _id: '1', name: 'Anxiety Support Group', members: 245, description: 'Share experiences and support' },
+      { _id: '2', name: 'Student Mental Health', members: 189, description: 'For students dealing with stress' },
+      { _id: '3', name: 'Depression Warriors', members: 312, description: 'Fighting depression together' }
+    ]);
+  } catch (error) {
+    console.error('Error loading communities:', error);
+  }
+};
 
   // Authentication handlers
   const handleLogin = async (e) => {
@@ -163,9 +168,23 @@ function App() {
     }
   };
 
-  const handleGoogleLogin = () => {
-    showNotification('Google login will be implemented soon', 'error');
+const handleGoogleLogin = () => {
+  // Mock Google login for demo purposes
+  const mockGoogleUser = {
+    _id: 'google_' + Date.now(),
+    name: 'Google User',
+    email: 'user@gmail.com',
+    profileImage: null
   };
+  
+  setCurrentUser(mockGoogleUser);
+  setIsLoggedIn(true);
+  setShowLoginModal(false);
+  setShowRegisterModal(false);
+  localStorage.setItem('user', JSON.stringify(mockGoogleUser));
+  localStorage.setItem('token', 'mock_google_token_' + Date.now());
+  showNotification('Signed in with Google! 🎉');
+};
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -394,23 +413,35 @@ const handleImageUpload = (e, type) => {
     }
   };
 
-  // Community handlers
-  const handleCreateCommunity = async (e) => {
-    e.preventDefault();
-    if (!newCommunityData.name || !newCommunityData.description) {
-      showNotification('Please fill in all fields', 'error');
-      return;
-    }
+ // Community handlers
+const handleCreateCommunity = async (e) => {
+  e.preventDefault();
+  if (!newCommunityData.name || !newCommunityData.description) {
+    showNotification('Please fill in all fields', 'error');
+    return;
+  }
+  
+  try {
+    // Create new community object
+    const newCommunity = {
+      _id: Date.now().toString(),
+      name: newCommunityData.name,
+      description: newCommunityData.description,
+      category: newCommunityData.category,
+      isPrivate: newCommunityData.isPrivate,
+      members: 1 // You as the creator
+    };
     
-    try {
-      showNotification('Community created! 🎉');
-      setShowNewCommunity(false);
-      setNewCommunityData({ name: '', description: '', category: 'General', isPrivate: false });
-      loadCommunities();
-    } catch (error) {
-      showNotification('Failed to create community', 'error');
-    }
-  };
+    // Add to existing communities
+    setCommunities([...communities, newCommunity]);
+    
+    showNotification('Community created! 🎉');
+    setShowNewCommunity(false);
+    setNewCommunityData({ name: '', description: '', category: 'General', isPrivate: false });
+  } catch (error) {
+    showNotification('Failed to create community', 'error');
+  }
+};
 
   const openCommunity = (community) => {
     setSelectedCommunity(community);
@@ -1048,84 +1079,92 @@ const handleImageUpload = (e, type) => {
         )}
 
         {/* SETTINGS VIEW */}
-        {view === 'settings' && (
-          <div className="max-w-4xl mx-auto">
-            <h2 className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-gray-800'} mb-8`}>Settings</h2>
-            
-            <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-8 shadow-sm space-y-6`}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-800'} mb-1`}>
-                    Theme
-                  </h3>
-                  <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Choose your preferred theme
-                  </p>
-                </div>
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => setTheme('light')}
-                    className={`px-4 py-2 rounded-lg ${
-                      theme === 'light' 
-                        ? 'bg-purple-600 text-white' 
-                        : isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
-                    }`}
-                  >
-                    ☀️ Light
-                  </button>
-                  <button
-                    onClick={() => setTheme('dark')}
-                    className={`px-4 py-2 rounded-lg ${
-                      theme === 'dark' 
-                        ? 'bg-purple-600 text-white' 
-                        : isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
-                    }`}
-                  >
-                    🌙 Dark
-                  </button>
-                </div>
-              </div>
+{view === 'settings' && (
+  <div className="max-w-4xl mx-auto">
+    <h2 className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-gray-800'} mb-8`}>Settings</h2>
+    
+    <div className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-8 shadow-sm space-y-6`}>
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-800'} mb-1`}>
+            Theme
+          </h3>
+          <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+            Choose your preferred theme
+          </p>
+        </div>
+        <div className="flex space-x-2">
+          <button
+            onClick={() => setTheme('light')}
+            className={`px-4 py-2 rounded-lg ${
+              theme === 'light' 
+                ? 'bg-purple-600 text-white' 
+                : isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
+            }`}
+          >
+            ☀️ Light
+          </button>
+          <button
+            onClick={() => setTheme('dark')}
+            className={`px-4 py-2 rounded-lg ${
+              theme === 'dark' 
+                ? 'bg-purple-600 text-white' 
+                : isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
+            }`}
+          >
+            🌙 Dark
+          </button>
+        </div>
+      </div>
 
-              <div className={`border-t ${isDark ? 'border-gray-700' : 'border-gray-200'} pt-6`}>
-                <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-800'} mb-4`}>
-                  Notifications
-                </h3>
-                <div className="space-y-3">
-                  <label className="flex items-center justify-between cursor-pointer">
-                    <span className={isDark ? 'text-gray-300' : 'text-gray-700'}>Email notifications</span>
-                    <input type="checkbox" className="w-5 h-5 text-purple-600 rounded" defaultChecked />
-                  </label>
-                  <label className="flex items-center justify-between cursor-pointer">
-                    <span className={isDark ? 'text-gray-300' : 'text-gray-700'}>Comment replies</span>
-                    <input type="checkbox" className="w-5 h-5 text-purple-600 rounded" defaultChecked />
-                  </label>
-                  <label className="flex items-center justify-between cursor-pointer">
-                    <span className={isDark ? 'text-gray-300' : 'text-gray-700'}>Community invites</span>
-                    <input type="checkbox" className="w-5 h-5 text-purple-600 rounded" />
-                  </label>
-                </div>
-              </div>
+      <div className={`border-t ${isDark ? 'border-gray-700' : 'border-gray-200'} pt-6`}>
+        <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-800'} mb-4`}>
+          Notifications
+        </h3>
+        <div className="space-y-3">
+          <label className="flex items-center justify-between cursor-pointer">
+            <span className={isDark ? 'text-gray-300' : 'text-gray-700'}>Email notifications</span>
+            <input type="checkbox" className="w-5 h-5 text-purple-600 rounded" defaultChecked />
+          </label>
+          <label className="flex items-center justify-between cursor-pointer">
+            <span className={isDark ? 'text-gray-300' : 'text-gray-700'}>Comment replies</span>
+            <input type="checkbox" className="w-5 h-5 text-purple-600 rounded" defaultChecked />
+          </label>
+          <label className="flex items-center justify-between cursor-pointer">
+            <span className={isDark ? 'text-gray-300' : 'text-gray-700'}>Community invites</span>
+            <input type="checkbox" className="w-5 h-5 text-purple-600 rounded" />
+          </label>
+        </div>
+      </div>
 
-              <div className={`border-t ${isDark ? 'border-gray-700' : 'border-gray-200'} pt-6`}>
-                <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-800'} mb-4`}>
-                  Privacy
-                </h3>
-                <div className="space-y-3">
-                  <label className="flex items-center justify-between cursor-pointer">
-                    <span className={isDark ? 'text-gray-300' : 'text-gray-700'}>Show profile to others</span>
-                    <input type="checkbox" className="w-5 h-5 text-purple-600 rounded" defaultChecked />
-                  </label>
-                  <label className="flex items-center justify-between cursor-pointer">
-                    <span className={isDark ? 'text-gray-300' : 'text-gray-700'}>Allow messages from non-friends</span>
-                    <input type="checkbox" className="w-5 h-5 text-purple-600 rounded" defaultChecked />
-                  </label>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </main>
+      <div className={`border-t ${isDark ? 'border-gray-700' : 'border-gray-200'} pt-6`}>
+        <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-800'} mb-4`}>
+          Privacy
+        </h3>
+        <div className="space-y-3">
+          <label className="flex items-center justify-between cursor-pointer">
+            <span className={isDark ? 'text-gray-300' : 'text-gray-700'}>Show profile to others</span>
+            <input type="checkbox" className="w-5 h-5 text-purple-600 rounded" defaultChecked />
+          </label>
+          <label className="flex items-center justify-between cursor-pointer">
+            <span className={isDark ? 'text-gray-300' : 'text-gray-700'}>Allow messages from non-friends</span>
+            <input type="checkbox" className="w-5 h-5 text-purple-600 rounded" defaultChecked />
+          </label>
+        </div>
+      </div>
 
+      {/* Save Button */}
+      <div className={`border-t ${isDark ? 'border-gray-700' : 'border-gray-200'} pt-6`}>
+        <button
+          onClick={() => showNotification('Settings saved successfully! ✅')}
+          className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold hover:shadow-lg transition"
+        >
+          Save Settings
+        </button>
+      </div>
+    </div>
+  </div>
+)}
       {/* MODALS - Login Modal */}
       {showLoginModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
