@@ -85,8 +85,6 @@ const loadFromLocalStorage = (key, defaultValue = []) => {
   }
 };
 
-const categories = ['All', 'General', 'Anxiety', 'Depression', 'Stress', 'Relationships', 'Self-Care', 'Students', 'Work', 'Grief', 'Trauma'];
-
   // Theme effect
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
