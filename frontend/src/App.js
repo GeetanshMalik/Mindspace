@@ -409,35 +409,6 @@ const handleLikeThread = async (threadId, event) => {
     showNotification('Failed to like post', 'error');
   }
 };
-    
-    if (view === 'thread' && selectedThread?._id === threadId) {
-      const data = await threadService.getThread(threadId);
-      setSelectedThread(data.thread);
-    }
-  } catch (error) {
-    showNotification('Failed to like post', 'error');
-  }
-};
-    
-    saveToLocalStorage('threads', updatedThreads);
-    
-    // Update local state
-    setThreads(updatedThreads.filter(t => {
-      if (filter === 'all') return true;
-      const categoryName = filter.charAt(0).toUpperCase() + filter.slice(1);
-      return t.category.toLowerCase() === categoryName.toLowerCase();
-    }));
-    
-    // Update selected thread if viewing thread detail
-    if (view === 'thread' && selectedThread?._id === threadId) {
-      const updatedThread = updatedThreads.find(t => t._id === threadId);
-      setSelectedThread(updatedThread);
-    }
-  } catch (error) {
-    console.error('Error liking thread:', error);
-    showNotification('Failed to like post', 'error');
-  }
-};
  const handleComment = async (e) => {
   e.preventDefault();
   if (!newComment.trim()) {
