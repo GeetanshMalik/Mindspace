@@ -431,32 +431,6 @@ const handleLikeThread = async (threadId, event) => {
     setLoading(false);
   }
 };
-    
-    // Save comment
-    const threadComments = loadFromLocalStorage(`comments_${selectedThread._id}`, []);
-    const updatedComments = [...threadComments, newCommentObj];
-    saveToLocalStorage(`comments_${selectedThread._id}`, updatedComments);
-    
-    // Update thread reply count
-    const allThreads = loadFromLocalStorage('threads', []);
-    const updatedThreads = allThreads.map(t => 
-      t._id === selectedThread._id 
-        ? { ...t, replyCount: (t.replyCount || 0) + 1 }
-        : t
-    );
-    saveToLocalStorage('threads', updatedThreads);
-    
-    setNewComment('');
-    setComments(updatedComments);
-    setSelectedThread({ ...selectedThread, replyCount: (selectedThread.replyCount || 0) + 1 });
-    showNotification('Comment posted! 💬');
-  } catch (error) {
-    console.error('Error posting comment:', error);
-    showNotification('Failed to post comment', 'error');
-  } finally {
-    setLoading(false);
-  }
-};
 
 const handleDeleteThread = async (threadId) => {
   if (!window.confirm('Are you sure you want to delete this thread? This action cannot be undone.')) {
@@ -476,7 +450,6 @@ const handleDeleteThread = async (threadId) => {
     setLoading(false);
   }
 };
-
 const handleDeleteComment = async (commentId) => {
   if (!window.confirm('Delete this comment?')) {
     return;
