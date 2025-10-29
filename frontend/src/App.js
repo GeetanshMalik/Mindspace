@@ -66,6 +66,27 @@ function App() {
 
   const categories = ['All', 'General', 'Anxiety', 'Depression', 'Stress', 'Relationships', 'Self-Care', 'Students', 'Work', 'Grief', 'Trauma'];
 
+  // LocalStorage helper functions
+const saveToLocalStorage = (key, data) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (error) {
+    console.error('Error saving to localStorage:', error);
+  }
+};
+
+const loadFromLocalStorage = (key, defaultValue = []) => {
+  try {
+    const data = localStorage.getItem(key);
+    return data ? JSON.parse(data) : defaultValue;
+  } catch (error) {
+    console.error('Error loading from localStorage:', error);
+    return defaultValue;
+  }
+};
+
+const categories = ['All', 'General', 'Anxiety', 'Depression', 'Stress', 'Relationships', 'Self-Care', 'Students', 'Work', 'Grief', 'Trauma'];
+
   // Theme effect
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
@@ -103,46 +124,65 @@ function App() {
     }
   }, []);
 
-  // Load threads
   useEffect(() => {
-    if (view === 'home') {
-      loadThreads();
-    }
-  }, [filter, view]);
+  const storedThreads = loadFromLocalStorage('threads', []);
+  const storedCommunities = loadFromLocalStorage('communities', [
+    { _id: '1', name: 'Anxiety Support Group', members: 245, description: 'Share experiences and support', messages: [] },
+    { _id: '2', name: 'Student Mental Health', members: 189, description: 'For students dealing with stress', messages: [] },
+    { _id: '3', name: 'Depression Warriors', members: 312, description: 'Fighting depression together', messages: [] }
+  ]);
+  
+  setThreads(storedThreads);
+  setCommunities(storedCommunities);
+  
+  // Save default communities if none exist
+  if (loadFromLocalStorage('communities', []).length === 0) {
+    saveToLocalStorage('communities', storedCommunities);
+  }
+}, []);
 
-  const loadThreads = async () => {
-    try {
-      setLoading(true);
-      const params = {};
-      
-      if (filter !== 'all') {
-        const categoryName = filter.charAt(0).toUpperCase() + filter.slice(1);
-        params.category = categoryName;
-      }
-      
-      const data = await threadService.getThreads(params);
-      setThreads(data.threads || []);
-    } catch (error) {
-      console.error('Error loading threads:', error);
-      showNotification('Failed to load discussions', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
+// Load threads
+useEffect(() => {
+  if (view === 'home') {
+    loadThreads();
+  }
+}, [filter, view]);
 
- // Load communities
-const loadCommunities = async () => {
+ const loadThreads = () => {
   try {
-    // Mock communities data - replace with API call when backend is ready
-    setCommunities([
-      { _id: '1', name: 'Anxiety Support Group', members: 245, description: 'Share experiences and support' },
-      { _id: '2', name: 'Student Mental Health', members: 189, description: 'For students dealing with stress' },
-      { _id: '3', name: 'Depression Warriors', members: 312, description: 'Fighting depression together' }
-    ]);
+    setLoading(true);
+    const storedThreads = loadFromLocalStorage('threads', []);
+    
+    let filteredThreads = storedThreads;
+    
+    if (filter !== 'all') {
+      const categoryName = filter.charAt(0).toUpperCase() + filter.slice(1);
+      filteredThreads = storedThreads.filter(thread => 
+        thread.category.toLowerCase() === categoryName.toLowerCase()
+      );
+    }
+    
+    setThreads(filteredThreads);
   } catch (error) {
-    console.error('Error loading communities:', error);
+    console.error('Error loading threads:', error);
+    showNotification('Failed to load discussions', 'error');
+  } finally {
+    setLoading(false);
   }
 };
+
+// Load communities
+const loadCommunities = () => {
+  try {
+    const storedCommunities = loadFromLocalStorage('communities', []);
+    setCommunities(storedCommunities);
+  } catch (error) {
+    console.error('Error loading communities:', error);
+    showNotification('Failed to load communities', 'error');
+  }
+};
+
+
 
   // Authentication handlers
   const handleLogin = async (e) => {
@@ -301,120 +341,230 @@ const handleImageUpload = (e, type) => {
     }
   };
   // Thread handlers
-  const handleCreateThread = async (e) => {
-    e.preventDefault();
-    if (!newThreadData.title || !newThreadData.content) {
-      showNotification('Please fill in all fields', 'error');
-      return;
-    }
+  const handleCreateThread = (e) => {
+  e.preventDefault();
+  if (!newThreadData.title || !newThreadData.content) {
+    showNotification('Please fill in all fields', 'error');
+    return;
+  }
+  
+  try {
+    setLoading(true);
     
-    try {
-      setLoading(true);
-      const threadPayload = {
-        title: newThreadData.title,
-        content: newThreadData.content,
-        category: newThreadData.category,
-        tags: newThreadData.tags,
-        isAnonymous: newThreadData.anonymous
-      };
-      
-      if (newThreadData.image) {
-        threadPayload.image = newThreadData.image;
-      }
-      
-      await threadService.createThread(threadPayload);
-      setShowNewThread(false);
-      setNewThreadData({ 
-        title: '', 
-        content: '', 
-        category: 'General', 
-        tags: [], 
-        anonymous: false,
-        image: null 
-      });
-      showNotification('Discussion posted! 💬');
-      loadThreads();
-    } catch (error) {
-      showNotification(error.response?.data?.error || 'Failed to create discussion', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const openThread = async (thread) => {
-    setSelectedThread(thread);
+    const newThread = {
+      _id: Date.now().toString(),
+      title: newThreadData.title,
+      content: newThreadData.content,
+      category: newThreadData.category,
+      tags: newThreadData.tags,
+      isAnonymous: newThreadData.anonymous,
+      image: newThreadData.image || null,
+      author: newThreadData.anonymous ? null : {
+        _id: currentUser._id,
+        name: currentUser.name,
+        email: currentUser.email
+      },
+      likeCount: 0,
+      replyCount: 0,
+      views: 0,
+      isLiked: false,
+      createdAt: new Date().toISOString()
+    };
+    
+    const allThreads = loadFromLocalStorage('threads', []);
+    const updatedThreads = [newThread, ...allThreads];
+    saveToLocalStorage('threads', updatedThreads);
+    
+    setShowNewThread(false);
+    setNewThreadData({ 
+      title: '', 
+      content: '', 
+      category: 'General', 
+      tags: [], 
+      anonymous: false,
+      image: null 
+    });
+    showNotification('Discussion posted! 💬');
+    loadThreads();
+  } catch (error) {
+    console.error('Error creating thread:', error);
+    showNotification('Failed to create discussion', 'error');
+  } finally {
+    setLoading(false);
+  }
+};
+  const openThread = (thread) => {
+  try {
+    setLoading(true);
+    
+    // Increment view count
+    const allThreads = loadFromLocalStorage('threads', []);
+    const updatedThreads = allThreads.map(t => 
+      t._id === thread._id ? { ...t, views: (t.views || 0) + 1 } : t
+    );
+    saveToLocalStorage('threads', updatedThreads);
+    
+    // Load thread and its comments
+    const updatedThread = updatedThreads.find(t => t._id === thread._id);
+    const threadComments = loadFromLocalStorage(`comments_${thread._id}`, []);
+    
+    setSelectedThread(updatedThread);
+    setComments(threadComments);
     setView('thread');
-    
-    try {
-      setLoading(true);
-      const data = await threadService.getThread(thread._id);
-      setSelectedThread(data.thread);
-      setComments(data.comments || []);
-    } catch (error) {
-      showNotification('Failed to load thread details', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
+  } catch (error) {
+    console.error('Error loading thread:', error);
+    showNotification('Failed to load thread details', 'error');
+  } finally {
+    setLoading(false);
+  }
+};
 
-  const handleLikeThread = async (threadId, event) => {
-    if (event) event.stopPropagation();
-    
-    if (!isLoggedIn) {
-      showNotification('Please login to like posts', 'error');
-      setShowLoginModal(true);
-      return;
-    }
-    
-    try {
-      await threadService.likeThread(threadId);
-      
-      setThreads(threads.map(t => {
-        if (t._id === threadId) {
-          const isLiked = t.isLiked;
-          return {
-            ...t,
-            likeCount: isLiked ? (t.likeCount - 1) : (t.likeCount || 0) + 1,
-            isLiked: !isLiked
-          };
-        }
-        return t;
-      }));
-      
-      if (view === 'thread' && selectedThread?._id === threadId) {
-        const data = await threadService.getThread(threadId);
-        setSelectedThread(data.thread);
+ const handleLikeThread = (threadId, event) => {
+  if (event) event.stopPropagation();
+  
+  if (!isLoggedIn) {
+    showNotification('Please login to like posts', 'error');
+    setShowLoginModal(true);
+    return;
+  }
+  
+  try {
+    const allThreads = loadFromLocalStorage('threads', []);
+    const updatedThreads = allThreads.map(t => {
+      if (t._id === threadId) {
+        const isLiked = t.isLiked;
+        return {
+          ...t,
+          likeCount: isLiked ? Math.max(0, (t.likeCount || 0) - 1) : (t.likeCount || 0) + 1,
+          isLiked: !isLiked
+        };
       }
-    } catch (error) {
-      showNotification('Failed to like post', 'error');
-    }
-  };
-
-  const handleComment = async (e) => {
-    e.preventDefault();
-    if (!newComment.trim()) {
-      showNotification('Please write a comment', 'error');
-      return;
-    }
+      return t;
+    });
     
-    try {
-      setLoading(true);
-      await commentService.createComment(selectedThread._id, newComment);
-      setNewComment('');
-      showNotification('Comment posted! 💬');
-      
-      const data = await threadService.getThread(selectedThread._id);
-      setComments(data.comments || []);
-      setSelectedThread(data.thread);
-    } catch (error) {
-      showNotification(error.response?.data?.error || 'Failed to post comment', 'error');
-    } finally {
-      setLoading(false);
+    saveToLocalStorage('threads', updatedThreads);
+    
+    // Update local state
+    setThreads(updatedThreads.filter(t => {
+      if (filter === 'all') return true;
+      const categoryName = filter.charAt(0).toUpperCase() + filter.slice(1);
+      return t.category.toLowerCase() === categoryName.toLowerCase();
+    }));
+    
+    // Update selected thread if viewing thread detail
+    if (view === 'thread' && selectedThread?._id === threadId) {
+      const updatedThread = updatedThreads.find(t => t._id === threadId);
+      setSelectedThread(updatedThread);
     }
-  };
+  } catch (error) {
+    console.error('Error liking thread:', error);
+    showNotification('Failed to like post', 'error');
+  }
+};
+  const handleComment = (e) => {
+  e.preventDefault();
+  if (!newComment.trim()) {
+    showNotification('Please write a comment', 'error');
+    return;
+  }
+  
+  try {
+    setLoading(true);
+    
+    const newCommentObj = {
+      _id: Date.now().toString(),
+      content: newComment,
+      author: {
+        _id: currentUser._id,
+        name: currentUser.name,
+        email: currentUser.email
+      },
+      createdAt: new Date().toISOString()
+    };
+
+    const handleDeleteThread = async (threadId) => {
+  if (!window.confirm('Are you sure you want to delete this thread? This action cannot be undone.')) {
+    return;
+  }
+  
+  try {
+    setLoading(true);
+    
+    // Remove thread
+    const allThreads = loadFromLocalStorage('threads', []);
+    const updatedThreads = allThreads.filter(t => t._id !== threadId);
+    saveToLocalStorage('threads', updatedThreads);
+    
+    // Remove thread comments
+    localStorage.removeItem(`comments_${threadId}`);
+    
+    showNotification('Thread deleted successfully! 🗑️');
+    setView('home');
+    loadThreads();
+  } catch (error) {
+    console.error('Delete thread error:', error);
+    showNotification('Failed to delete thread', 'error');
+  } finally {
+    setLoading(false);
+  }
+};
+    const handleDeleteComment = async (commentId) => {
+  if (!window.confirm('Delete this comment?')) {
+    return;
+  }
+  
+  try {
+    // Remove comment
+    const threadComments = loadFromLocalStorage(`comments_${selectedThread._id}`, []);
+    const updatedComments = threadComments.filter(c => c._id !== commentId);
+    saveToLocalStorage(`comments_${selectedThread._id}`, updatedComments);
+    
+    // Update thread reply count
+    const allThreads = loadFromLocalStorage('threads', []);
+    const updatedThreads = allThreads.map(t => 
+      t._id === selectedThread._id 
+        ? { ...t, replyCount: Math.max(0, (t.replyCount || 0) - 1) }
+        : t
+    );
+    saveToLocalStorage('threads', updatedThreads);
+    
+    setComments(updatedComments);
+    setSelectedThread({ ...selectedThread, replyCount: Math.max(0, (selectedThread.replyCount || 0) - 1) });
+    showNotification('Comment deleted');
+  } catch (error) {
+    console.error('Error deleting comment:', error);
+    showNotification('Failed to delete comment', 'error');
+  }
+};
+    
+    // Save comment
+    const threadComments = loadFromLocalStorage(`comments_${selectedThread._id}`, []);
+    const updatedComments = [...threadComments, newCommentObj];
+    saveToLocalStorage(`comments_${selectedThread._id}`, updatedComments);
+    
+    // Update thread reply count
+    const allThreads = loadFromLocalStorage('threads', []);
+    const updatedThreads = allThreads.map(t => 
+      t._id === selectedThread._id 
+        ? { ...t, replyCount: (t.replyCount || 0) + 1 }
+        : t
+    );
+    saveToLocalStorage('threads', updatedThreads);
+    
+    setNewComment('');
+    setComments(updatedComments);
+    setSelectedThread({ ...selectedThread, replyCount: (selectedThread.replyCount || 0) + 1 });
+    showNotification('Comment posted! 💬');
+  } catch (error) {
+    console.error('Error posting comment:', error);
+    showNotification('Failed to post comment', 'error');
+  } finally {
+    setLoading(false);
+  }
+};
 
  // Community handlers
-const handleCreateCommunity = async (e) => {
+const handleCreateCommunity = (e) => {
   e.preventDefault();
   if (!newCommunityData.name || !newCommunityData.description) {
     showNotification('Please fill in all fields', 'error');
@@ -422,15 +572,30 @@ const handleCreateCommunity = async (e) => {
   }
   
   try {
-    // Create new community object
     const newCommunity = {
       _id: Date.now().toString(),
       name: newCommunityData.name,
       description: newCommunityData.description,
       category: newCommunityData.category,
       isPrivate: newCommunityData.isPrivate,
-      members: 1 // You as the creator
+      members: 1,
+      messages: []
     };
+    
+    const allCommunities = loadFromLocalStorage('communities', []);
+    const updatedCommunities = [...allCommunities, newCommunity];
+    saveToLocalStorage('communities', updatedCommunities);
+    
+    setCommunities(updatedCommunities);
+    
+    showNotification('Community created! 🎉');
+    setShowNewCommunity(false);
+    setNewCommunityData({ name: '', description: '', category: 'General', isPrivate: false });
+  } catch (error) {
+    console.error('Error creating community:', error);
+    showNotification('Failed to create community', 'error');
+  }
+};
     
     // Add to existing communities
     setCommunities([...communities, newCommunity]);
@@ -443,29 +608,36 @@ const handleCreateCommunity = async (e) => {
   }
 };
 
-  const openCommunity = (community) => {
-    setSelectedCommunity(community);
-    setView('community-chat');
-    setCommunityMessages([
-      { _id: '1', user: 'John Doe', message: 'Hey everyone!', timestamp: new Date() },
-      { _id: '2', user: 'Jane Smith', message: 'Welcome to the group!', timestamp: new Date() }
-    ]);
-  };
+ const openCommunity = (community) => {
+  setSelectedCommunity(community);
+  setView('community-chat');
+  
+  // Load messages for this community
+  const messages = loadFromLocalStorage(`community_messages_${community._id}`, []);
+  setCommunityMessages(messages);
+};
 
   const sendCommunityMessage = (e) => {
-    e.preventDefault();
-    if (!newMessage.trim()) return;
-    
-    const message = {
-      _id: Date.now().toString(),
-      user: currentUser.name,
-      message: newMessage,
-      timestamp: new Date()
-    };
-    
-    setCommunityMessages([...communityMessages, message]);
-    setNewMessage('');
+  e.preventDefault();
+  if (!newMessage.trim() && !audioBlob) return;
+  
+  const message = {
+    _id: Date.now().toString(),
+    user: currentUser.name,
+    userId: currentUser._id,
+    message: newMessage,
+    audio: audioBlob ? URL.createObjectURL(audioBlob) : null,
+    timestamp: new Date().toISOString()
   };
+  
+  const messages = loadFromLocalStorage(`community_messages_${selectedCommunity._id}`, []);
+  const updatedMessages = [...messages, message];
+  saveToLocalStorage(`community_messages_${selectedCommunity._id}`, updatedMessages);
+  
+  setCommunityMessages(updatedMessages);
+  setNewMessage('');
+  setAudioBlob(null);
+};
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
@@ -725,24 +897,8 @@ const handleCreateCommunity = async (e) => {
                 {/* Delete Button - Only show to thread author */}
                 {isLoggedIn && currentUser && selectedThread.author?._id === currentUser._id && (
                   <button
-                    onClick={async () => {
-                      if (window.confirm('Are you sure you want to delete this thread? This action cannot be undone.')) {
-                        try {
-                          setLoading(true);
-                          await threadService.deleteThread(selectedThread._id);
-                          showNotification('Thread deleted successfully! 🗑️');
-                          setView('home');
-                          loadThreads();
-                        } catch (error) {
-                          console.error('Delete thread error:', error);
-                          showNotification('Failed to delete thread', 'error');
-                        } finally {
-                          setLoading(false);
-                        }
-                      }
-                    }}
-                    className="flex items-center space-x-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition font-semibold"
-                  >
+                    onClick={() => handleDeleteThread(selectedThread._id)}
+                    className="flex items-center space-x-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition font-semibold">
                     <span>🗑️</span>
                     <span>Delete</span>
                   </button>
@@ -860,21 +1016,8 @@ const handleCreateCommunity = async (e) => {
                           {/* Delete Comment Button - Only for comment author */}
                           {isLoggedIn && currentUser && comment.author?._id === currentUser._id && (
                             <button
-                              onClick={async () => {
-                                if (window.confirm('Delete this comment?')) {
-                                  try {
-                                    await commentService.deleteComment(comment._id);
-                                    showNotification('Comment deleted');
-                                    const data = await threadService.getThread(selectedThread._id);
-                                    setComments(data.comments || []);
-                                  } catch (error) {
-                                    showNotification('Failed to delete comment', 'error');
-                                  }
-                                }
-                              }}
-                              className="text-red-500 hover:text-red-700 text-sm"
-                            >
-                              🗑️
+                              onClick={() => handleDeleteComment(comment._id)}
+                              className="text-red-500 hover:text-red-700 text-sm">🗑️
                             </button>
                           )}
                         </div>
