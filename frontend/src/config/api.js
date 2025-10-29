@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-export const API_URL = process.env.REACT_APP_API_URL || 'https://mindspace-mental-health-forum.onrender.com/api';
-export const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'https://mindspace-mental-health-forum.onrender.com';
+export const API_URL ='https://mindspace-mental-health-forum.onrender.com/api';
+export const SOCKET_URL ='https://mindspace-mental-health-forum.onrender.com';
 
 const api = axios.create({
   baseURL: API_URL,
