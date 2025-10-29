@@ -319,7 +319,7 @@ const handleImageUpload = (e, type) => {
       return 'Recently';
     }
   };
-  // Thread handlers
+// Thread handlers
 const handleCreateThread = async (e) => {
   e.preventDefault();
   if (!newThreadData.title || !newThreadData.content) {
@@ -359,8 +359,8 @@ const handleCreateThread = async (e) => {
     setLoading(false);
   }
 };
-  
-  const openThread = async (thread) => {
+
+const openThread = async (thread) => {
   setSelectedThread(thread);
   setView('thread');
   
@@ -375,30 +375,8 @@ const handleCreateThread = async (e) => {
     setLoading(false);
   }
 };
-    
-    // Increment view count
-    const allThreads = loadFromLocalStorage('threads', []);
-    const updatedThreads = allThreads.map(t => 
-      t._id === thread._id ? { ...t, views: (t.views || 0) + 1 } : t
-    );
-    saveToLocalStorage('threads', updatedThreads);
-    
-    // Load thread and its comments
-    const updatedThread = updatedThreads.find(t => t._id === thread._id);
-    const threadComments = loadFromLocalStorage(`comments_${thread._id}`, []);
-    
-    setSelectedThread(updatedThread);
-    setComments(threadComments);
-    setView('thread');
-  } catch (error) {
-    console.error('Error loading thread:', error);
-    showNotification('Failed to load thread details', 'error');
-  } finally {
-    setLoading(false);
-  }
-};
 
- const handleLikeThread = async (threadId, event) => {
+const handleLikeThread = async (threadId, event) => {
   if (event) event.stopPropagation();
   
   if (!isLoggedIn) {
@@ -422,6 +400,15 @@ const handleCreateThread = async (e) => {
       }
       return t;
     }));
+    
+    if (view === 'thread' && selectedThread?._id === threadId) {
+      const data = await threadService.getThread(threadId);
+      setSelectedThread(data.thread);
+    }
+  } catch (error) {
+    showNotification('Failed to like post', 'error');
+  }
+};
     
     if (view === 'thread' && selectedThread?._id === threadId) {
       const data = await threadService.getThread(threadId);
