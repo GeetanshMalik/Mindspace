@@ -431,7 +431,6 @@ const handleLikeThread = async (threadId, event) => {
     setLoading(false);
   }
 };
-
 const handleDeleteThread = async (threadId) => {
   if (!window.confirm('Are you sure you want to delete this thread? This action cannot be undone.')) {
     return;
@@ -450,6 +449,7 @@ const handleDeleteThread = async (threadId) => {
     setLoading(false);
   }
 };
+
 const handleDeleteComment = async (commentId) => {
   if (!window.confirm('Delete this comment?')) {
     return;
@@ -462,16 +462,6 @@ const handleDeleteComment = async (commentId) => {
     setComments(data.comments || []);
     setSelectedThread(data.thread);
   } catch (error) {
-    showNotification('Failed to delete comment', 'error');
-  }
-};
-    saveToLocalStorage('threads', updatedThreads);
-    
-    setComments(updatedComments);
-    setSelectedThread({ ...selectedThread, replyCount: Math.max(0, (selectedThread.replyCount || 0) - 1) });
-    showNotification('Comment deleted');
-  } catch (error) {
-    console.error('Error deleting comment:', error);
     showNotification('Failed to delete comment', 'error');
   }
 };
