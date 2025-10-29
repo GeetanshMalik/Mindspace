@@ -122,45 +122,25 @@ const loadFromLocalStorage = (key, defaultValue = []) => {
     }
   }, []);
 
-  useEffect(() => {
-  const storedThreads = loadFromLocalStorage('threads', []);
-  const storedCommunities = loadFromLocalStorage('communities', [
-    { _id: '1', name: 'Anxiety Support Group', members: 245, description: 'Share experiences and support', messages: [] },
-    { _id: '2', name: 'Student Mental Health', members: 189, description: 'For students dealing with stress', messages: [] },
-    { _id: '3', name: 'Depression Warriors', members: 312, description: 'Fighting depression together', messages: [] }
-  ]);
-  
-  setThreads(storedThreads);
-  setCommunities(storedCommunities);
-  
-  // Save default communities if none exist
-  if (loadFromLocalStorage('communities', []).length === 0) {
-    saveToLocalStorage('communities', storedCommunities);
-  }
-}, []);
-
-// Load threads
+  // Load all data from localStorage on app start
 useEffect(() => {
   if (view === 'home') {
     loadThreads();
   }
-}, [filter, view]);
-
- const loadThreads = () => {
+}, []);
+// Load threads
+const loadThreads = async () => {
   try {
     setLoading(true);
-    const storedThreads = loadFromLocalStorage('threads', []);
-    
-    let filteredThreads = storedThreads;
+    const params = {};
     
     if (filter !== 'all') {
       const categoryName = filter.charAt(0).toUpperCase() + filter.slice(1);
-      filteredThreads = storedThreads.filter(thread => 
-        thread.category.toLowerCase() === categoryName.toLowerCase()
-      );
+      params.category = categoryName;
     }
     
-    setThreads(filteredThreads);
+    const data = await threadService.getThreads(params);
+    setThreads(data.threads || []);
   } catch (error) {
     console.error('Error loading threads:', error);
     showNotification('Failed to load discussions', 'error');
@@ -170,10 +150,11 @@ useEffect(() => {
 };
 
 // Load communities
-const loadCommunities = () => {
+const loadCommunities = async () => {
   try {
-    const storedCommunities = loadFromLocalStorage('communities', []);
-    setCommunities(storedCommunities);
+    // For now, keep mock data until you add community endpoints to backend
+    const mockCommunities = loadFromLocalStorage('communities', []);
+    setCommunities(mockCommunities);
   } catch (error) {
     console.error('Error loading communities:', error);
     showNotification('Failed to load communities', 'error');
@@ -339,7 +320,7 @@ const handleImageUpload = (e, type) => {
     }
   };
   // Thread handlers
-  const handleCreateThread = (e) => {
+const handleCreateThread = async (e) => {
   e.preventDefault();
   if (!newThreadData.title || !newThreadData.content) {
     showNotification('Please fill in all fields', 'error');
@@ -348,31 +329,19 @@ const handleImageUpload = (e, type) => {
   
   try {
     setLoading(true);
-    
-    const newThread = {
-      _id: Date.now().toString(),
+    const threadPayload = {
       title: newThreadData.title,
       content: newThreadData.content,
       category: newThreadData.category,
       tags: newThreadData.tags,
-      isAnonymous: newThreadData.anonymous,
-      image: newThreadData.image || null,
-      author: newThreadData.anonymous ? null : {
-        _id: currentUser._id,
-        name: currentUser.name,
-        email: currentUser.email
-      },
-      likeCount: 0,
-      replyCount: 0,
-      views: 0,
-      isLiked: false,
-      createdAt: new Date().toISOString()
+      isAnonymous: newThreadData.anonymous
     };
     
-    const allThreads = loadFromLocalStorage('threads', []);
-    const updatedThreads = [newThread, ...allThreads];
-    saveToLocalStorage('threads', updatedThreads);
+    if (newThreadData.image) {
+      threadPayload.image = newThreadData.image;
+    }
     
+    await threadService.createThread(threadPayload);
     setShowNewThread(false);
     setNewThreadData({ 
       title: '', 
@@ -385,15 +354,27 @@ const handleImageUpload = (e, type) => {
     showNotification('Discussion posted! 💬');
     loadThreads();
   } catch (error) {
-    console.error('Error creating thread:', error);
-    showNotification('Failed to create discussion', 'error');
+    showNotification(error.response?.data?.error || 'Failed to create discussion', 'error');
   } finally {
     setLoading(false);
   }
 };
-  const openThread = (thread) => {
+  
+  const openThread = async (thread) => {
+  setSelectedThread(thread);
+  setView('thread');
+  
   try {
     setLoading(true);
+    const data = await threadService.getThread(thread._id);
+    setSelectedThread(data.thread);
+    setComments(data.comments || []);
+  } catch (error) {
+    showNotification('Failed to load thread details', 'error');
+  } finally {
+    setLoading(false);
+  }
+};
     
     // Increment view count
     const allThreads = loadFromLocalStorage('threads', []);
@@ -417,7 +398,7 @@ const handleImageUpload = (e, type) => {
   }
 };
 
- const handleLikeThread = (threadId, event) => {
+ const handleLikeThread = async (threadId, event) => {
   if (event) event.stopPropagation();
   
   if (!isLoggedIn) {
@@ -427,18 +408,29 @@ const handleImageUpload = (e, type) => {
   }
   
   try {
-    const allThreads = loadFromLocalStorage('threads', []);
-    const updatedThreads = allThreads.map(t => {
+    await threadService.likeThread(threadId);
+    
+    // Update local state optimistically
+    setThreads(threads.map(t => {
       if (t._id === threadId) {
         const isLiked = t.isLiked;
         return {
           ...t,
-          likeCount: isLiked ? Math.max(0, (t.likeCount || 0) - 1) : (t.likeCount || 0) + 1,
+          likeCount: isLiked ? (t.likeCount - 1) : (t.likeCount || 0) + 1,
           isLiked: !isLiked
         };
       }
       return t;
-    });
+    }));
+    
+    if (view === 'thread' && selectedThread?._id === threadId) {
+      const data = await threadService.getThread(threadId);
+      setSelectedThread(data.thread);
+    }
+  } catch (error) {
+    showNotification('Failed to like post', 'error');
+  }
+};
     
     saveToLocalStorage('threads', updatedThreads);
     
@@ -459,7 +451,7 @@ const handleImageUpload = (e, type) => {
     showNotification('Failed to like post', 'error');
   }
 };
- const handleComment = (e) => {
+ const handleComment = async (e) => {
   e.preventDefault();
   if (!newComment.trim()) {
     showNotification('Please write a comment', 'error');
@@ -468,17 +460,19 @@ const handleImageUpload = (e, type) => {
   
   try {
     setLoading(true);
+    await commentService.createComment(selectedThread._id, newComment);
+    setNewComment('');
+    showNotification('Comment posted! 💬');
     
-    const newCommentObj = {
-      _id: Date.now().toString(),
-      content: newComment,
-      author: {
-        _id: currentUser._id,
-        name: currentUser.name,
-        email: currentUser.email
-      },
-      createdAt: new Date().toISOString()
-    };
+    const data = await threadService.getThread(selectedThread._id);
+    setComments(data.comments || []);
+    setSelectedThread(data.thread);
+  } catch (error) {
+    showNotification(error.response?.data?.error || 'Failed to post comment', 'error');
+  } finally {
+    setLoading(false);
+  }
+};
     
     // Save comment
     const threadComments = loadFromLocalStorage(`comments_${selectedThread._id}`, []);
@@ -506,22 +500,14 @@ const handleImageUpload = (e, type) => {
   }
 };
 
-const handleDeleteThread = (threadId) => {
+const handleDeleteThread = async (threadId) => {
   if (!window.confirm('Are you sure you want to delete this thread? This action cannot be undone.')) {
     return;
   }
   
   try {
     setLoading(true);
-    
-    // Remove thread
-    const allThreads = loadFromLocalStorage('threads', []);
-    const updatedThreads = allThreads.filter(t => t._id !== threadId);
-    saveToLocalStorage('threads', updatedThreads);
-    
-    // Remove thread comments
-    localStorage.removeItem(`comments_${threadId}`);
-    
+    await threadService.deleteThread(threadId);
     showNotification('Thread deleted successfully! 🗑️');
     setView('home');
     loadThreads();
@@ -533,24 +519,21 @@ const handleDeleteThread = (threadId) => {
   }
 };
 
-const handleDeleteComment = (commentId) => {
+const handleDeleteComment = async (commentId) => {
   if (!window.confirm('Delete this comment?')) {
     return;
   }
   
   try {
-    // Remove comment
-    const threadComments = loadFromLocalStorage(`comments_${selectedThread._id}`, []);
-    const updatedComments = threadComments.filter(c => c._id !== commentId);
-    saveToLocalStorage(`comments_${selectedThread._id}`, updatedComments);
-    
-    // Update thread reply count
-    const allThreads = loadFromLocalStorage('threads', []);
-    const updatedThreads = allThreads.map(t => 
-      t._id === selectedThread._id 
-        ? { ...t, replyCount: Math.max(0, (t.replyCount || 0) - 1) }
-        : t
-    );
+    await commentService.deleteComment(commentId);
+    showNotification('Comment deleted');
+    const data = await threadService.getThread(selectedThread._id);
+    setComments(data.comments || []);
+    setSelectedThread(data.thread);
+  } catch (error) {
+    showNotification('Failed to delete comment', 'error');
+  }
+};
     saveToLocalStorage('threads', updatedThreads);
     
     setComments(updatedComments);
