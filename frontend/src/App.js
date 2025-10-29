@@ -601,7 +601,7 @@ const handleCreateCommunity = (e) => {
     showNotification('Community created! 🎉');
     setShowNewCommunity(false);
     setNewCommunityData({ name: '', description: '', category: 'General', isPrivate: false });
-  } catch (error) {
+    catch (error) {
     showNotification('Failed to create community', 'error');
   }
 };
