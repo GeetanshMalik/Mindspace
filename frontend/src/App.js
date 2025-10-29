@@ -459,7 +459,7 @@ const handleImageUpload = (e, type) => {
     showNotification('Failed to like post', 'error');
   }
 };
-  const handleComment = (e) => {
+ const handleComment = (e) => {
   e.preventDefault();
   if (!newComment.trim()) {
     showNotification('Please write a comment', 'error');
@@ -561,34 +561,8 @@ const handleDeleteComment = (commentId) => {
     showNotification('Failed to delete comment', 'error');
   }
 };
-    
-    // Save comment
-    const threadComments = loadFromLocalStorage(`comments_${selectedThread._id}`, []);
-    const updatedComments = [...threadComments, newCommentObj];
-    saveToLocalStorage(`comments_${selectedThread._id}`, updatedComments);
-    
-    // Update thread reply count
-    const allThreads = loadFromLocalStorage('threads', []);
-    const updatedThreads = allThreads.map(t => 
-      t._id === selectedThread._id 
-        ? { ...t, replyCount: (t.replyCount || 0) + 1 }
-        : t
-    );
-    saveToLocalStorage('threads', updatedThreads);
-    
-    setNewComment('');
-    setComments(updatedComments);
-    setSelectedThread({ ...selectedThread, replyCount: (selectedThread.replyCount || 0) + 1 });
-    showNotification('Comment posted! 💬');
-  } catch (error) {
-    console.error('Error posting comment:', error);
-    showNotification('Failed to post comment', 'error');
-  } finally {
-    setLoading(false);
-  }
-};
 
- // Community handlers
+// Community handlers
 const handleCreateCommunity = (e) => {
   e.preventDefault();
   if (!newCommunityData.name || !newCommunityData.description) {
