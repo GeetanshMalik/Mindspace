@@ -594,19 +594,8 @@ const handleCreateCommunity = (e) => {
     showNotification('Failed to create community', 'error');
   }
 };
-    
-    // Add to existing communities
-    setCommunities([...communities, newCommunity]);
-    
-    showNotification('Community created! 🎉');
-    setShowNewCommunity(false);
-    setNewCommunityData({ name: '', description: '', category: 'General', isPrivate: false });
-    catch (error) {
-    showNotification('Failed to create community', 'error');
-  }
-};
 
- const openCommunity = (community) => {
+const openCommunity = (community) => {
   setSelectedCommunity(community);
   setView('community-chat');
   
@@ -615,7 +604,7 @@ const handleCreateCommunity = (e) => {
   setCommunityMessages(messages);
 };
 
-  const sendCommunityMessage = (e) => {
+const sendCommunityMessage = (e) => {
   e.preventDefault();
   if (!newMessage.trim() && !audioBlob) return;
   
@@ -637,19 +626,19 @@ const handleCreateCommunity = (e) => {
   setAudioBlob(null);
 };
 
-  const handleUpdateProfile = async (e) => {
-    e.preventDefault();
-    try {
-      showNotification('Profile updated! ✨');
-      setShowProfileEdit(false);
-      
-      const updatedUser = { ...currentUser, ...profileData };
-      setCurrentUser(updatedUser);
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-    } catch (error) {
-      showNotification('Failed to update profile', 'error');
-    }
-  };
+const handleUpdateProfile = async (e) => {
+  e.preventDefault();
+  try {
+    showNotification('Profile updated! ✨');
+    setShowProfileEdit(false);
+    
+    const updatedUser = { ...currentUser, ...profileData };
+    setCurrentUser(updatedUser);
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+  } catch (error) {
+    showNotification('Failed to update profile', 'error');
+  }
+};
 
   const isDark = theme === 'dark';
 
