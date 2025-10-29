@@ -479,8 +479,34 @@ const handleImageUpload = (e, type) => {
       },
       createdAt: new Date().toISOString()
     };
+    
+    // Save comment
+    const threadComments = loadFromLocalStorage(`comments_${selectedThread._id}`, []);
+    const updatedComments = [...threadComments, newCommentObj];
+    saveToLocalStorage(`comments_${selectedThread._id}`, updatedComments);
+    
+    // Update thread reply count
+    const allThreads = loadFromLocalStorage('threads', []);
+    const updatedThreads = allThreads.map(t => 
+      t._id === selectedThread._id 
+        ? { ...t, replyCount: (t.replyCount || 0) + 1 }
+        : t
+    );
+    saveToLocalStorage('threads', updatedThreads);
+    
+    setNewComment('');
+    setComments(updatedComments);
+    setSelectedThread({ ...selectedThread, replyCount: (selectedThread.replyCount || 0) + 1 });
+    showNotification('Comment posted! 💬');
+  } catch (error) {
+    console.error('Error posting comment:', error);
+    showNotification('Failed to post comment', 'error');
+  } finally {
+    setLoading(false);
+  }
+};
 
-    const handleDeleteThread = async (threadId) => {
+const handleDeleteThread = (threadId) => {
   if (!window.confirm('Are you sure you want to delete this thread? This action cannot be undone.')) {
     return;
   }
@@ -506,7 +532,8 @@ const handleImageUpload = (e, type) => {
     setLoading(false);
   }
 };
-    const handleDeleteComment = async (commentId) => {
+
+const handleDeleteComment = (commentId) => {
   if (!window.confirm('Delete this comment?')) {
     return;
   }
